@@ -1,0 +1,144 @@
+### This config file contains required core defaults that must be set, along with a handful of common optional settings.
+### For a full list of available settings, see https://microsoft.github.io/graphrag/config/yaml/
+
+### LLM settings ###
+## There are a number of settings to tune the threading and token limits for LLM calls - check the docs.
+
+models:
+  default_chat_model:
+    type: openai_chat # using openai_chat type for vllm compatibility
+    api_base: http://43.143.178.100:8000/model3/v1  # 您的LLM模型端点
+    api_key: Mj68hxjGAt4y%N1tf@,A@@BzD1      # 您的vllm api key
+    model: DeepSeek-R1-Distill-Qwen-32B      # 与您部署的模型名称一致
+    encoding_model: cl100k_base              # explicit tokenizer for custom model
+    model_supports_json: true
+    max_tokens: 3500              # 模型的model length 为 16k
+    temperature: 0              # 添加低温度设置，提高JSON格式一致性
+    concurrent_requests: 4       
+    async_mode: threaded
+    retry_strategy: native
+    max_retries: 5                # 增加重试次数
+    tokens_per_minute: 50000     # 大幅增加，匹配更强的处理能力
+    requests_per_minute: 100      # 大幅增加请求频率
+  default_embedding_model:
+    type: openai_embedding # 您的embedding模型
+    api_base: http://43.143.178.100:8000/model5/v1  # 您的embedding模型端点
+    api_key: Mj68hxjGAt4y%N1tf@,A@@BzD1      
+    model: bge-m3  # 您的embedding模型名称
+    encoding_model: cl100k_base              
+    concurrent_requests: 8    # 适当增加嵌入模型并发
+    request_timeout: 60       # 增加超时时间
+    async_mode: threaded
+    retry_strategy: native
+    max_retries: 5            # 增加重试次数
+    tokens_per_minute: 100000  # 增加嵌入模型处理能力
+    requests_per_minute: 200   # 增加请求频率
+
+### Input settings ###
+
+input:
+  storage:
+    type: file
+    base_dir: "input"
+  file_type: text # for your Christmas Carol book text
+
+chunks:
+  size: 1200         # 充分利用bge-m3的8192 token容量，保持更多上下文
+  overlap: 120       # 相应调整overlap为chunk大小的10%
+  group_by_columns: [id]
+
+### Output/storage settings ###
+## Using local file storage
+
+output:
+  type: file
+  base_dir: "output"
+    
+cache:
+  type: file
+  base_dir: "cache"
+
+reporting:
+  type: file
+  base_dir: "logs"
+
+vector_store:  # 重新启用向量存储
+  default_vector_store:
+    type: lancedb
+    db_uri: output\lancedb
+    container_name: default
+    overwrite: True
+
+### Workflow settings ###
+
+embed_text:
+  model_id: default_embedding_model  # 重新启用文本嵌入
+  vector_store_id: default_vector_store
+  batch_max_tokens: 7500             # 充分利用bge-m3的8192 token容量，留出缓冲
+  batch_size: 16                     # 利用bge-m3的强大性能，提高批处理效率
+
+extract_graph:
+  model_id: default_chat_model
+  prompt: "prompts/extract_graph.txt"
+  entity_types: [organization,person,geo,event]  # 减少实体类型
+  max_gleanings: 1              # 保持在1减少token使用
+
+summarize_descriptions:
+  model_id: default_chat_model
+  prompt: "prompts/summarize_descriptions.txt"
+  max_length: 200               # 减少长度确保稳定性
+
+extract_graph_nlp:
+  text_analyzer:
+    extractor_type: regex_english
+
+cluster_graph:
+  max_cluster_size: 8          # 减少聚类大小，简化社区报告
+
+extract_claims:
+  enabled: false
+  model_id: default_chat_model
+  prompt: "prompts/extract_claims.txt"
+  description: "Any claims or facts that could be relevant to information discovery."
+  max_gleanings: 1
+
+community_reports:
+  model_id: default_chat_model
+  graph_prompt: "prompts/community_report_graph.txt"
+  text_prompt: "prompts/community_report_text.txt"
+  max_length: 800              # 减少到800，确保JSON格式完整
+  max_input_length: 2000       # 减少输入长度，为输出留出更多空间
+
+embed_graph:
+  enabled: false
+
+umap:
+  enabled: false
+
+snapshots:
+  graphml: false
+  embeddings: false
+
+### Query settings ###
+
+local_search:
+  chat_model_id: default_chat_model
+  embedding_model_id: default_embedding_model  # 重新启用
+  prompt: "prompts/local_search_system_prompt.txt"
+
+global_search:
+  chat_model_id: default_chat_model
+  map_prompt: "prompts/global_search_map_system_prompt.txt"
+  reduce_prompt: "prompts/global_search_reduce_system_prompt.txt"
+  knowledge_prompt: "prompts/global_search_knowledge_system_prompt.txt"
+
+drift_search:
+  chat_model_id: default_chat_model
+  embedding_model_id: default_embedding_model  # 重新启用
+  prompt: "prompts/drift_search_system_prompt.txt"
+  reduce_prompt: "prompts/drift_search_reduce_prompt.txt"
+
+basic_search:
+  chat_model_id: default_chat_model
+  embedding_model_id: default_embedding_model  # 重新启用
+  prompt: "prompts/basic_search_system_prompt.txt"
