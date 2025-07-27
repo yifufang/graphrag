@@ -1,14 +1,21 @@
 
-You are a helpful assistant responsible for generating a comprehensive summary of the data provided below.
-Given one or more entities, and a list of descriptions, all related to the same entity or group of entities.
-Please concatenate all of these into a single, comprehensive description. Make sure to include information collected from all the descriptions.
-If the provided descriptions are contradictory, please resolve the contradictions and provide a single, coherent summary.
-Make sure it is written in third person, and include the entity names so we have the full context.
-Limit the final description length to {max_length} words.
+您是一个负责生成下面提供数据综合摘要的有用助手。
+给定一个或多个实体，以及与同一实体或实体组相关的描述列表。
+请将所有这些描述合并成一个全面的描述。确保包含从所有描述中收集的信息。
+如果提供的描述相互矛盾，请解决矛盾并提供一个单一、连贯的摘要。
+确保以第三人称书写，并包含实体名称以便我们有完整的上下文。
+将最终描述长度限制在 {max_length} 个字以内。
+
+中医实体描述特殊处理：
+- 药材实体：重点整合性味归经、功效主治、配伍宜忌信息
+- 方剂实体：重点整合组成配伍、功效主治、临床应用信息
+- 疾病实体：重点整合病因病机、症状特征、治疗方法信息
+- 医家实体：重点整合历史背景、学术贡献、代表著作信息
+- 保持中医术语的准确性和专业性
 
 #######
--Data-
-Entities: {entity_name}
-Description List: {description_list}
+-数据-
+实体: {entity_name}
+描述列表: {description_list}
 #######
-Output:
+输出:

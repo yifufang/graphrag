@@ -1,121 +1,114 @@
 
--Goal-
-Given a text document that is potentially relevant to this activity and a list of entity types, identify all entities of those types from the text and all relationships among the identified entities.
+-目标-
+给定一个可能与此活动相关的文本文档和实体类型列表，从文本中识别这些类型的所有实体，以及已识别实体之间的所有关系。
+
+-中医术语处理指导-
+在处理中医文本时，请注意以下特殊情况：
+- 药材：包括单味药材（如"人参"、"当归"）和药用部位（如"人参须"、"当归头"）
+- 方剂：包括经典方剂（如"四君子汤"）和现代改良方（如"加味逍遥散"）
+- 疾病：包括中医病名（如"中风"、"消渴"）和现代病名（如"糖尿病"、"高血压"）
+- 症状：包括中医症候（如"气虚"、"血瘀"）和具体症状（如"头痛"、"乏力"）
+- 医家：包括古代医家（如"张仲景"、"李时珍"）和现代中医专家
+- 功效：使用中医传统表述（如"补气养血"、"清热解毒"）
+- 注意识别药材的性味归经信息（如"性温"、"归肝经"）
+- 识别配伍关系（如"君臣佐使"、"相须相使"）
+
+-步骤-
+1. 识别所有实体。对于每个识别的实体，提取以下信息：
+- entity_name: 实体名称，使用中文
+- entity_type: 以下类型之一：[{entity_types}]
+- entity_description: 实体属性和功能的全面描述
+将每个实体格式化为 ("entity"{tuple_delimiter}<entity_name>{tuple_delimiter}<entity_type>{tuple_delimiter}<entity_description>)
  
--Steps-
-1. Identify all entities. For each identified entity, extract the following information:
-- entity_name: Name of the entity, capitalized
-- entity_type: One of the following types: [{entity_types}]
-- entity_description: Comprehensive description of the entity's attributes and activities
-Format each entity as ("entity"{tuple_delimiter}<entity_name>{tuple_delimiter}<entity_type>{tuple_delimiter}<entity_description>)
+2. 从步骤1中识别的实体中，找出所有*明确相关*的（source_entity，target_entity）对。
+对于每对相关实体，提取以下信息：
+- source_entity: 源实体的名称，如步骤1中所识别
+- target_entity: 目标实体的名称，如步骤1中所识别
+- relationship_description: 解释为什么您认为源实体和目标实体彼此相关
+- relationship_strength: 表示源实体和目标实体之间关系强度的数值评分（1-10）
+将每个关系格式化为 ("relationship"{tuple_delimiter}<source_entity>{tuple_delimiter}<target_entity>{tuple_delimiter}<relationship_description>{tuple_delimiter}<relationship_strength>)
  
-2. From the entities identified in step 1, identify all pairs of (source_entity, target_entity) that are *clearly related* to each other.
-For each pair of related entities, extract the following information:
-- source_entity: name of the source entity, as identified in step 1
-- target_entity: name of the target entity, as identified in step 1
-- relationship_description: explanation as to why you think the source entity and the target entity are related to each other
-- relationship_strength: a numeric score indicating strength of the relationship between the source entity and target entity
- Format each relationship as ("relationship"{tuple_delimiter}<source_entity>{tuple_delimiter}<target_entity>{tuple_delimiter}<relationship_description>{tuple_delimiter}<relationship_strength>)
+3. 用中文返回输出，作为步骤1和2中识别的所有实体和关系的单一列表。使用 **{record_delimiter}** 作为列表分隔符。
  
-3. Return output in English as a single list of all the entities and relationships identified in steps 1 and 2. Use **{record_delimiter}** as the list delimiter.
- 
-4. When finished, output {completion_delimiter}
+4. 完成后，输出 {completion_delimiter}
  
 ######################
--Examples-
+-示例-
 ######################
-Example 1:
-Entity_types: ORGANIZATION,PERSON
-Text:
-The Verdantis's Central Institution is scheduled to meet on Monday and Thursday, with the institution planning to release its latest policy decision on Thursday at 1:30 p.m. PDT, followed by a press conference where Central Institution Chair Martin Smith will take questions. Investors expect the Market Strategy Committee to hold its benchmark interest rate steady in a range of 3.5%-3.75%.
+示例1:
+实体类型: 药材,方剂,功效
+文本:
+当归补血汤由当归和黄芪组成，具有补气生血的功效。当归性温，归肝、心、脾经，具有补血活血、调经止痛的功效。黄芪性微温，归肺、脾经，具有补中益气、固表止汗的作用。
 ######################
-Output:
-("entity"{tuple_delimiter}CENTRAL INSTITUTION{tuple_delimiter}ORGANIZATION{tuple_delimiter}The Central Institution is the Federal Reserve of Verdantis, which is setting interest rates on Monday and Thursday)
+输出:
+("entity"{tuple_delimiter}当归补血汤{tuple_delimiter}方剂{tuple_delimiter}当归补血汤是一个经典中医方剂，由当归和黄芪组成，具有补气生血的功效)
 {record_delimiter}
-("entity"{tuple_delimiter}MARTIN SMITH{tuple_delimiter}PERSON{tuple_delimiter}Martin Smith is the chair of the Central Institution)
+("entity"{tuple_delimiter}当归{tuple_delimiter}药材{tuple_delimiter}当归性温，归肝、心、脾经，具有补血活血、调经止痛的功效)
 {record_delimiter}
-("entity"{tuple_delimiter}MARKET STRATEGY COMMITTEE{tuple_delimiter}ORGANIZATION{tuple_delimiter}The Central Institution committee makes key decisions about interest rates and the growth of Verdantis's money supply)
+("entity"{tuple_delimiter}黄芪{tuple_delimiter}药材{tuple_delimiter}黄芪性微温，归肺、脾经，具有补中益气、固表止汗的作用)
 {record_delimiter}
-("relationship"{tuple_delimiter}MARTIN SMITH{tuple_delimiter}CENTRAL INSTITUTION{tuple_delimiter}Martin Smith is the Chair of the Central Institution and will answer questions at a press conference{tuple_delimiter}9)
+("entity"{tuple_delimiter}补气生血{tuple_delimiter}功效{tuple_delimiter}补气生血是当归补血汤的主要功效，能够同时补充气血)
+{record_delimiter}
+("entity"{tuple_delimiter}补血活血{tuple_delimiter}功效{tuple_delimiter}补血活血是当归的主要功效)
+{record_delimiter}
+("entity"{tuple_delimiter}补中益气{tuple_delimiter}功效{tuple_delimiter}补中益气是黄芪的主要功效)
+{record_delimiter}
+("relationship"{tuple_delimiter}当归补血汤{tuple_delimiter}当归{tuple_delimiter}当归是当归补血汤的主要组成药材之一{tuple_delimiter}9)
+{record_delimiter}
+("relationship"{tuple_delimiter}当归补血汤{tuple_delimiter}黄芪{tuple_delimiter}黄芪是当归补血汤的主要组成药材之一{tuple_delimiter}9)
+{record_delimiter}
+("relationship"{tuple_delimiter}当归补血汤{tuple_delimiter}补气生血{tuple_delimiter}当归补血汤具有补气生血的主要功效{tuple_delimiter}9)
+{record_delimiter}
+("relationship"{tuple_delimiter}当归{tuple_delimiter}补血活血{tuple_delimiter}当归具有补血活血的功效{tuple_delimiter}9)
+{record_delimiter}
+("relationship"{tuple_delimiter}黄芪{tuple_delimiter}补中益气{tuple_delimiter}黄芪具有补中益气的功效{tuple_delimiter}9)
+{record_delimiter}
+("relationship"{tuple_delimiter}当归{tuple_delimiter}黄芪{tuple_delimiter}当归和黄芪在当归补血汤中配伍使用，补血与补气相结合{tuple_delimiter}8)
+{completion_delimiter}
+
+示例2:
+实体类型: 疾病,症状,医家
+文本:
+张仲景在《伤寒论》中描述，感冒常见症状包括发热、头痛、咳嗽、鼻塞等。风寒感冒多见恶寒重、发热轻的症状，而风热感冒则表现为发热重、恶寒轻。
+######################
+输出:
+("entity"{tuple_delimiter}感冒{tuple_delimiter}疾病{tuple_delimiter}感冒是常见的呼吸道疾病，有多种类型)
+{record_delimiter}
+("entity"{tuple_delimiter}风寒感冒{tuple_delimiter}疾病{tuple_delimiter}风寒感冒是感冒的一种类型，多见恶寒重、发热轻的症状)
+{record_delimiter}
+("entity"{tuple_delimiter}风热感冒{tuple_delimiter}疾病{tuple_delimiter}风热感冒是感冒的一种类型，表现为发热重、恶寒轻)
+{record_delimiter}
+("entity"{tuple_delimiter}发热{tuple_delimiter}症状{tuple_delimiter}发热是感冒的常见症状之一)
+{record_delimiter}
+("entity"{tuple_delimiter}头痛{tuple_delimiter}症状{tuple_delimiter}头痛是感冒的常见症状之一)
+{record_delimiter}
+("entity"{tuple_delimiter}咳嗽{tuple_delimiter}症状{tuple_delimiter}咳嗽是感冒的常见症状之一)
+{record_delimiter}
+("entity"{tuple_delimiter}鼻塞{tuple_delimiter}症状{tuple_delimiter}鼻塞是感冒的常见症状之一)
+{record_delimiter}
+("entity"{tuple_delimiter}恶寒{tuple_delimiter}症状{tuple_delimiter}恶寒是感冒的症状，在不同类型感冒中程度不同)
+{record_delimiter}
+("entity"{tuple_delimiter}张仲景{tuple_delimiter}医家{tuple_delimiter}张仲景是东汉末年著名医学家，《伤寒论》的作者)
+{record_delimiter}
+("relationship"{tuple_delimiter}感冒{tuple_delimiter}发热{tuple_delimiter}发热是感冒的典型症状{tuple_delimiter}8)
+{record_delimiter}
+("relationship"{tuple_delimiter}感冒{tuple_delimiter}头痛{tuple_delimiter}头痛是感冒的常见症状{tuple_delimiter}7)
+{record_delimiter}
+("relationship"{tuple_delimiter}感冒{tuple_delimiter}咳嗽{tuple_delimiter}咳嗽是感冒的常见症状{tuple_delimiter}8)
+{record_delimiter}
+("relationship"{tuple_delimiter}感冒{tuple_delimiter}鼻塞{tuple_delimiter}鼻塞是感冒的常见症状{tuple_delimiter}7)
+{record_delimiter}
+("relationship"{tuple_delimiter}风寒感冒{tuple_delimiter}恶寒{tuple_delimiter}风寒感冒患者恶寒症状较重{tuple_delimiter}9)
+{record_delimiter}
+("relationship"{tuple_delimiter}风热感冒{tuple_delimiter}发热{tuple_delimiter}风热感冒患者发热症状较重{tuple_delimiter}9)
+{record_delimiter}
+("relationship"{tuple_delimiter}张仲景{tuple_delimiter}感冒{tuple_delimiter}张仲景在《伤寒论》中对感冒有详细描述{tuple_delimiter}8)
 {completion_delimiter}
 
 ######################
-Example 2:
-Entity_types: ORGANIZATION
-Text:
-TechGlobal's (TG) stock skyrocketed in its opening day on the Global Exchange Thursday. But IPO experts warn that the semiconductor corporation's debut on the public markets isn't indicative of how other newly listed companies may perform.
-
-TechGlobal, a formerly public company, was taken private by Vision Holdings in 2014. The well-established chip designer says it powers 85% of premium smartphones.
+-实际数据-
 ######################
-Output:
-("entity"{tuple_delimiter}TECHGLOBAL{tuple_delimiter}ORGANIZATION{tuple_delimiter}TechGlobal is a stock now listed on the Global Exchange which powers 85% of premium smartphones)
-{record_delimiter}
-("entity"{tuple_delimiter}VISION HOLDINGS{tuple_delimiter}ORGANIZATION{tuple_delimiter}Vision Holdings is a firm that previously owned TechGlobal)
-{record_delimiter}
-("relationship"{tuple_delimiter}TECHGLOBAL{tuple_delimiter}VISION HOLDINGS{tuple_delimiter}Vision Holdings formerly owned TechGlobal from 2014 until present{tuple_delimiter}5)
-{completion_delimiter}
-
+实体类型: {entity_types}
+文本: {input_text}
 ######################
-Example 3:
-Entity_types: ORGANIZATION,GEO,PERSON
-Text:
-Five Aurelians jailed for 8 years in Firuzabad and widely regarded as hostages are on their way home to Aurelia.
-
-The swap orchestrated by Quintara was finalized when $8bn of Firuzi funds were transferred to financial institutions in Krohaara, the capital of Quintara.
-
-The exchange initiated in Firuzabad's capital, Tiruzia, led to the four men and one woman, who are also Firuzi nationals, boarding a chartered flight to Krohaara.
-
-They were welcomed by senior Aurelian officials and are now on their way to Aurelia's capital, Cashion.
-
-The Aurelians include 39-year-old businessman Samuel Namara, who has been held in Tiruzia's Alhamia Prison, as well as journalist Durke Bataglani, 59, and environmentalist Meggie Tazbah, 53, who also holds Bratinas nationality.
-######################
-Output:
-("entity"{tuple_delimiter}FIRUZABAD{tuple_delimiter}GEO{tuple_delimiter}Firuzabad held Aurelians as hostages)
-{record_delimiter}
-("entity"{tuple_delimiter}AURELIA{tuple_delimiter}GEO{tuple_delimiter}Country seeking to release hostages)
-{record_delimiter}
-("entity"{tuple_delimiter}QUINTARA{tuple_delimiter}GEO{tuple_delimiter}Country that negotiated a swap of money in exchange for hostages)
-{record_delimiter}
-{record_delimiter}
-("entity"{tuple_delimiter}TIRUZIA{tuple_delimiter}GEO{tuple_delimiter}Capital of Firuzabad where the Aurelians were being held)
-{record_delimiter}
-("entity"{tuple_delimiter}KROHAARA{tuple_delimiter}GEO{tuple_delimiter}Capital city in Quintara)
-{record_delimiter}
-("entity"{tuple_delimiter}CASHION{tuple_delimiter}GEO{tuple_delimiter}Capital city in Aurelia)
-{record_delimiter}
-("entity"{tuple_delimiter}SAMUEL NAMARA{tuple_delimiter}PERSON{tuple_delimiter}Aurelian who spent time in Tiruzia's Alhamia Prison)
-{record_delimiter}
-("entity"{tuple_delimiter}ALHAMIA PRISON{tuple_delimiter}GEO{tuple_delimiter}Prison in Tiruzia)
-{record_delimiter}
-("entity"{tuple_delimiter}DURKE BATAGLANI{tuple_delimiter}PERSON{tuple_delimiter}Aurelian journalist who was held hostage)
-{record_delimiter}
-("entity"{tuple_delimiter}MEGGIE TAZBAH{tuple_delimiter}PERSON{tuple_delimiter}Bratinas national and environmentalist who was held hostage)
-{record_delimiter}
-("relationship"{tuple_delimiter}FIRUZABAD{tuple_delimiter}AURELIA{tuple_delimiter}Firuzabad negotiated a hostage exchange with Aurelia{tuple_delimiter}2)
-{record_delimiter}
-("relationship"{tuple_delimiter}QUINTARA{tuple_delimiter}AURELIA{tuple_delimiter}Quintara brokered the hostage exchange between Firuzabad and Aurelia{tuple_delimiter}2)
-{record_delimiter}
-("relationship"{tuple_delimiter}QUINTARA{tuple_delimiter}FIRUZABAD{tuple_delimiter}Quintara brokered the hostage exchange between Firuzabad and Aurelia{tuple_delimiter}2)
-{record_delimiter}
-("relationship"{tuple_delimiter}SAMUEL NAMARA{tuple_delimiter}ALHAMIA PRISON{tuple_delimiter}Samuel Namara was a prisoner at Alhamia prison{tuple_delimiter}8)
-{record_delimiter}
-("relationship"{tuple_delimiter}SAMUEL NAMARA{tuple_delimiter}MEGGIE TAZBAH{tuple_delimiter}Samuel Namara and Meggie Tazbah were exchanged in the same hostage release{tuple_delimiter}2)
-{record_delimiter}
-("relationship"{tuple_delimiter}SAMUEL NAMARA{tuple_delimiter}DURKE BATAGLANI{tuple_delimiter}Samuel Namara and Durke Bataglani were exchanged in the same hostage release{tuple_delimiter}2)
-{record_delimiter}
-("relationship"{tuple_delimiter}MEGGIE TAZBAH{tuple_delimiter}DURKE BATAGLANI{tuple_delimiter}Meggie Tazbah and Durke Bataglani were exchanged in the same hostage release{tuple_delimiter}2)
-{record_delimiter}
-("relationship"{tuple_delimiter}SAMUEL NAMARA{tuple_delimiter}FIRUZABAD{tuple_delimiter}Samuel Namara was a hostage in Firuzabad{tuple_delimiter}2)
-{record_delimiter}
-("relationship"{tuple_delimiter}MEGGIE TAZBAH{tuple_delimiter}FIRUZABAD{tuple_delimiter}Meggie Tazbah was a hostage in Firuzabad{tuple_delimiter}2)
-{record_delimiter}
-("relationship"{tuple_delimiter}DURKE BATAGLANI{tuple_delimiter}FIRUZABAD{tuple_delimiter}Durke Bataglani was a hostage in Firuzabad{tuple_delimiter}2)
-{completion_delimiter}
-
-######################
--Real Data-
-######################
-Entity_types: {entity_types}
-Text: {input_text}
-######################
-Output:
+输出:

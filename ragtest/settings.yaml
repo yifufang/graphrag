@@ -12,9 +12,9 @@ models:
     model: DeepSeek-R1-Distill-Qwen-32B      # 与您部署的模型名称一致
     encoding_model: cl100k_base              # explicit tokenizer for custom model
     model_supports_json: true
-    max_tokens: 3500              # 模型的model length 为 16k
-    temperature: 0              # 添加低温度设置，提高JSON格式一致性
-    concurrent_requests: 4       
+    max_tokens: 4000              # 增加到4000以适应中文和复杂的JSON输出
+    temperature: 0.1              # 稍微提高温度以获得更多样的中文表达
+    concurrent_requests: 6       
     async_mode: threaded
     retry_strategy: native
     max_retries: 5                # 增加重试次数
@@ -40,11 +40,13 @@ input:
   storage:
     type: file
     base_dir: "input"
-  file_type: text # for your Christmas Carol book text
+  file_type: text # 支持文本文件类型
+  file_pattern: ".*\\.(txt|md)$$"  # 支持 .txt 和 .md 文件，使用$$转义$$符号
+  encoding: utf-8  # 确保正确处理中文编码
 
 chunks:
-  size: 1200         # 充分利用bge-m3的8192 token容量，保持更多上下文
-  overlap: 120       # 相应调整overlap为chunk大小的10%
+  size: 800         # 适当减小chunk大小，因为中文字符密度更高
+  overlap: 80       # 相应调整overlap为chunk大小的10%
   group_by_columns: [id]
 
 ### Output/storage settings ###
@@ -74,40 +76,40 @@ vector_store:  # 重新启用向量存储
 embed_text:
   model_id: default_embedding_model  # 重新启用文本嵌入
   vector_store_id: default_vector_store
-  batch_max_tokens: 7500             # 充分利用bge-m3的8192 token容量，留出缓冲
-  batch_size: 16                     # 利用bge-m3的强大性能，提高批处理效率
+  batch_max_tokens: 6000             # 适当降低以适应中文token计算
+  batch_size: 12                     # 适当降低批处理大小
 
 extract_graph:
   model_id: default_chat_model
   prompt: "prompts/extract_graph.txt"
-  entity_types: [organization,person,geo,event]  # 减少实体类型
-  max_gleanings: 1              # 保持在1减少token使用
+  entity_types: [药材,方剂,疾病,症状,医家,功效]  # 去掉医书，专注于6个核心中医实体
+  max_gleanings: 2              # 增加到2次迭代，提高中医实体关系提取的完整性
 
 summarize_descriptions:
   model_id: default_chat_model
   prompt: "prompts/summarize_descriptions.txt"
-  max_length: 200               # 减少长度确保稳定性
+  max_length: 300               # 增加长度以适应中文表达
 
 extract_graph_nlp:
   text_analyzer:
-    extractor_type: regex_english
+    extractor_type: regex_english  # 注意：这里可能需要针对中文调整
 
 cluster_graph:
-  max_cluster_size: 8          # 减少聚类大小，简化社区报告
+  max_cluster_size: 10          # 适当增加聚类大小以适应中医知识的复杂性
 
 extract_claims:
-  enabled: false
+  enabled: true                  # 开启声明提取，对中医功效验证很有价值
   model_id: default_chat_model
   prompt: "prompts/extract_claims.txt"
-  description: "Any claims or facts that could be relevant to information discovery."
+  description: "与药材功效、方剂应用、疾病治疗相关的声明，包括现代研究验证和传统文献记载。"
   max_gleanings: 1
 
 community_reports:
   model_id: default_chat_model
   graph_prompt: "prompts/community_report_graph.txt"
   text_prompt: "prompts/community_report_text.txt"
-  max_length: 800              # 减少到800，确保JSON格式完整
-  max_input_length: 2000       # 减少输入长度，为输出留出更多空间
+  max_length: 1200              # 增加长度以适应中文社区报告
+  max_input_length: 3000       # 增加输入长度
 
 embed_graph:
   enabled: false

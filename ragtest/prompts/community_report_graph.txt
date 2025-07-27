@@ -1,149 +1,104 @@
 
-You are an AI assistant that helps a human analyst to perform general information discovery. Information discovery is the process of identifying and assessing relevant information associated with certain entities (e.g., organizations and individuals) within a network.
+您是一个AI助手，帮助人类分析师进行综合信息发现。信息发现是识别和评估与网络中某些实体（例如，组织和个人）相关的相关信息的过程。
 
-# Goal
-Write a comprehensive report of a community, given a list of entities that belong to the community as well as their relationships and optional associated claims. The report will be used to inform decision-makers about information associated with the community and their potential impact. The content of this report includes an overview of the community's key entities, their legal compliance, technical capabilities, reputation, and noteworthy claims.
+# 目标
+编写一个社区的综合报告，给定属于该社区的实体列表以及它们的关系和可选的相关声明。该报告将用于告知决策者有关与社区相关的信息及其潜在影响。此报告的内容包括社区关键实体的概述、它们的合规性、技术能力、声誉和值得注意的声明。
 
-# Report Structure
+# 中医知识图谱社区特征
+在分析中医知识社区时，请特别关注：
+- 药材配伍关系：君臣佐使的配伍逻辑
+- 理法方药体系：理论指导处方，处方体现理论
+- 辨证论治思想：同病异治、异病同治的诊疗模式
+- 经典传承脉络：从古典理论到现代应用的传承关系
+- 现代验证情况：传统功效的现代科学验证状态
+- 安全性考量：毒副作用、配伍禁忌等安全性信息
 
-The report should include the following sections:
+# 报告结构
 
-- TITLE: community's name that represents its key entities - title should be short but specific. When possible, include representative named entities in the title.
-- SUMMARY: An executive summary of the community's overall structure, how its entities are related to each other, and significant information associated with its entities.
-- IMPACT SEVERITY RATING: a float score between 0-10 that represents the severity of IMPACT posed by entities within the community.  IMPACT is the scored importance of a community.
-- RATING EXPLANATION: Give a single sentence explanation of the IMPACT severity rating.
-- DETAILED FINDINGS: A list of 5-10 key insights about the community. Each insight should have a short summary followed by multiple paragraphs of explanatory text grounded according to the grounding rules below. Be comprehensive.
+报告应包括以下部分：
 
-Return output as a well-formed JSON-formatted string with the following format:
+- 标题：代表其关键实体的社区名称 - 标题应简短但具体。如果可能，在标题中包含代表性的命名实体。
+- 摘要：社区整体结构的执行摘要，其实体如何相互关联，以及与其实体相关的重要信息。
+- 影响严重性评级：0-10之间的浮点评分，代表社区内实体所构成的影响严重性。影响是社区重要性的评分。
+- 评级解释：对影响严重性评级给出一句话解释。
+- 详细发现：关于社区的5-10个关键见解列表。每个见解应有一个简短摘要，然后是根据下面的基础规则编写的多段解释性文本。要全面。
+
+以以下格式返回格式良好的JSON格式字符串：
     {{
-        "title": <report_title>,
-        "summary": <executive_summary>,
-        "rating": <impact_severity_rating>,
-        "rating_explanation": <rating_explanation>,
+        "title": <报告标题>,
+        "summary": <执行摘要>,
+        "rating": <影响严重性评级>,
+        "rating_explanation": <评级解释>,
         "findings": [
             {{
-                "summary":<insight_1_summary>,
-                "explanation": <insight_1_explanation>
+                "summary":<见解1摘要>,
+                "explanation": <见解1解释>
             }},
             {{
-                "summary":<insight_2_summary>,
-                "explanation": <insight_2_explanation>
+                "summary":<见解2摘要>,
+                "explanation": <见解2解释>
             }}
         ]
     }}
 
-# Grounding Rules
+# 基础规则
 
-Points supported by data should list their data references as follows:
+数据支持的要点应按以下方式列出其数据引用：
 
-"This is an example sentence supported by multiple data references [Data: <dataset name> (record ids); <dataset name> (record ids)]."
+"这是一个由多个数据引用支持的示例句子 [数据: <数据集名称> (记录id); <数据集名称> (记录id)]。"
 
-Do not list more than 5 record ids in a single reference. Instead, list the top 5 most relevant record ids and add "+more" to indicate that there are more.
+在单个引用中不要列出超过5个记录ID。相反，列出前5个最相关的记录ID并添加"+更多"以表明还有更多。
 
-For example:
-"Person X is the owner of Company Y and subject to many allegations of wrongdoing [Data: Reports (1), Entities (5, 7); Relationships (23); Claims (7, 2, 34, 64, 46, +more)]."
+例如：
+"人X是公司Y的所有者，并受到许多不当行为指控 [数据: 报告 (1), 实体 (5, 7); 关系 (23); 声明 (7, 2, 34, 64, 46, +更多)]。"
 
-where 1, 5, 7, 23, 2, 34, 46, and 64 represent the id (not the index) of the relevant data record.
+其中1、5、7、23、2、34、46和64表示相关数据记录的id（不是索引）。
 
-Do not include information where the supporting evidence for it is not provided.
+不要包含没有提供支持证据的信息。
 
-Limit the total report length to {max_report_length} words.
+将总报告长度限制在 {max_report_length} 字以内。
 
-# Example Input
+# 示例输入
 -----------
-Text:
+文本：
 
-Entities
+实体
 
 id,entity,description
-5,VERDANT OASIS PLAZA,Verdant Oasis Plaza is the location of the Unity March
-6,HARMONY ASSEMBLY,Harmony Assembly is an organization that is holding a march at Verdant Oasis Plaza
+5,青蒿素,青蒿素是从青蒿中提取的抗疟疾药物
+6,屠呦呦,屠呦呦是发现青蒿素的中国科学家
 
-Relationships
+关系
 
 id,source,target,description
-37,VERDANT OASIS PLAZA,UNITY MARCH,Verdant Oasis Plaza is the location of the Unity March
-38,VERDANT OASIS PLAZA,HARMONY ASSEMBLY,Harmony Assembly is holding a march at Verdant Oasis Plaza
-39,VERDANT OASIS PLAZA,UNITY MARCH,The Unity March is taking place at Verdant Oasis Plaza
-40,VERDANT OASIS PLAZA,TRIBUNE SPOTLIGHT,Tribune Spotlight is reporting on the Unity march taking place at Verdant Oasis Plaza
-41,VERDANT OASIS PLAZA,BAILEY ASADI,Bailey Asadi is speaking at Verdant Oasis Plaza about the march
-43,HARMONY ASSEMBLY,UNITY MARCH,Harmony Assembly is organizing the Unity March
+37,青蒿素,青蒿,青蒿素是从青蒿植物中提取的
+38,青蒿素,屠呦呦,屠呦呦发现了青蒿素的抗疟疾效果
+39,青蒿素,疟疾,青蒿素是治疗疟疾的有效药物
 
-Output:
+输出：
 {{
-    "title": "Verdant Oasis Plaza and Unity March",
-    "summary": "The community revolves around the Verdant Oasis Plaza, which is the location of the Unity March. The plaza has relationships with the Harmony Assembly, Unity March, and Tribune Spotlight, all of which are associated with the march event.",
-    "rating": 5.0,
-    "rating_explanation": "The impact severity rating is moderate due to the potential for unrest or conflict during the Unity March.",
+    "title": "青蒿素和抗疟疾研究",
+    "summary": "该社区围绕青蒿素这一重要抗疟疾药物展开，涉及其发现者屠呦呦以及原植物青蒿。这个社区代表了中医药现代化和国际化的重要成果。",
+    "rating": 8.5,
+    "rating_explanation": "影响严重性评级较高，因为青蒿素的发现对全球疟疾治疗产生了革命性影响。",
     "findings": [
         {{
-            "summary": "Verdant Oasis Plaza as the central location",
-            "explanation": "Verdant Oasis Plaza is the central entity in this community, serving as the location for the Unity March. This plaza is the common link between all other entities, suggesting its significance in the community. The plaza's association with the march could potentially lead to issues such as public disorder or conflict, depending on the nature of the march and the reactions it provokes. [Data: Entities (5), Relationships (37, 38, 39, 40, 41,+more)]"
+            "summary": "青蒿素作为核心药物实体",
+            "explanation": "青蒿素是该社区的核心实体，作为从传统中药青蒿中提取的现代抗疟疾药物。它连接了传统中医药知识与现代医学研究，展示了中医药的科学价值和现代应用潜力。青蒿素的发现不仅拯救了数百万疟疾患者的生命，也为中医药的国际认可奠定了基础。[数据: 实体 (5), 关系 (37, 38, 39)]"
         }},
         {{
-            "summary": "Harmony Assembly's role in the community",
-            "explanation": "Harmony Assembly is another key entity in this community, being the organizer of the march at Verdant Oasis Plaza. The nature of Harmony Assembly and its march could be a potential source of threat, depending on their objectives and the reactions they provoke. The relationship between Harmony Assembly and the plaza is crucial in understanding the dynamics of this community. [Data: Entities(6), Relationships (38, 43)]"
-        }},
-        {{
-            "summary": "Unity March as a significant event",
-            "explanation": "The Unity March is a significant event taking place at Verdant Oasis Plaza. This event is a key factor in the community's dynamics and could be a potential source of threat, depending on the nature of the march and the reactions it provokes. The relationship between the march and the plaza is crucial in understanding the dynamics of this community. [Data: Relationships (39)]"
-        }},
-        {{
-            "summary": "Role of Tribune Spotlight",
-            "explanation": "Tribune Spotlight is reporting on the Unity March taking place in Verdant Oasis Plaza. This suggests that the event has attracted media attention, which could amplify its impact on the community. The role of Tribune Spotlight could be significant in shaping public perception of the event and the entities involved. [Data: Relationships (40)]"
+            "summary": "屠呦呦的科学贡献",
+            "explanation": "屠呦呦作为青蒿素的发现者，在这个社区中扮演着关键角色。她的研究工作成功地将传统中医药理论与现代科学方法相结合，从古代典籍中寻找灵感，最终提取出青蒿素。这一发现不仅获得了诺贝尔生理学或医学奖，也证明了中医药研究的巨大潜力。[数据: 实体(6), 关系 (38)]"
         }}
     ]
 }}
 
 
-# Real Data
+# 实际数据
 
-Use the following text for your answer. Do not make anything up in your answer.
+使用以下文本进行您的回答。不要在答案中编造任何内容。
 
-Text:
+文本：
 {input_text}
 
-The report should include the following sections:
-
-- TITLE: community's name that represents its key entities - title should be short but specific. When possible, include representative named entities in the title.
-- SUMMARY: An executive summary of the community's overall structure, how its entities are related to each other, and significant information associated with its entities.
-- IMPACT SEVERITY RATING: a float score between 0-10 that represents the severity of IMPACT posed by entities within the community.  IMPACT is the scored importance of a community.
-- RATING EXPLANATION: Give a single sentence explanation of the IMPACT severity rating.
-- DETAILED FINDINGS: A list of 5-10 key insights about the community. Each insight should have a short summary followed by multiple paragraphs of explanatory text grounded according to the grounding rules below. Be comprehensive.
-
-Return output as a well-formed JSON-formatted string with the following format:
-    {{
-        "title": <report_title>,
-        "summary": <executive_summary>,
-        "rating": <impact_severity_rating>,
-        "rating_explanation": <rating_explanation>,
-        "findings": [
-            {{
-                "summary":<insight_1_summary>,
-                "explanation": <insight_1_explanation>
-            }},
-            {{
-                "summary":<insight_2_summary>,
-                "explanation": <insight_2_explanation>
-            }}
-        ]
-    }}
-
-# Grounding Rules
-
-Points supported by data should list their data references as follows:
-
-"This is an example sentence supported by multiple data references [Data: <dataset name> (record ids); <dataset name> (record ids)]."
-
-Do not list more than 5 record ids in a single reference. Instead, list the top 5 most relevant record ids and add "+more" to indicate that there are more.
-
-For example:
-"Person X is the owner of Company Y and subject to many allegations of wrongdoing [Data: Reports (1), Entities (5, 7); Relationships (23); Claims (7, 2, 34, 64, 46, +more)]."
-
-where 1, 5, 7, 23, 2, 34, 46, and 64 represent the id (not the index) of the relevant data record.
-
-Do not include information where the supporting evidence for it is not provided.
-
-Limit the total report length to {max_report_length} words.
-
-Output:
+输出：
