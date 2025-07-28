@@ -40,7 +40,7 @@ __blobstorage__/
 
 .pipelines
 .pipeline
-
+data/
 
 # mkdocs
 site/
