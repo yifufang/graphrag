@@ -14,7 +14,7 @@ models:
     model_supports_json: true
     max_tokens: 6000              # 16k context支持更长输出，提高中医描述质量
     temperature: 0.1              # 稍微提高温度以获得更多样的中文表达
-    concurrent_requests: 24       
+    concurrent_requests: 20       
     async_mode: threaded
     retry_strategy: native
     max_retries: 5                # 增加重试次数
@@ -82,7 +82,7 @@ embed_text:
 extract_graph:
   model_id: default_chat_model
   prompt: "prompts/extract_graph.txt"
-  entity_types: [药材,方剂,疾病,症状,医家,功效]  # 去掉医书，专注于6个核心中医实体
+  entity_types: [药材,方剂,疾病,症状,医家,功效,病因,脉象,诊断方法,经络,穴位,脏腑,其他]  # 扩展中医实体类型，添加兜底类型
   max_gleanings: 1              # 增加到2次迭代，提高中医实体关系提取的完整性
 
 summarize_descriptions:

@@ -10,13 +10,23 @@
 - 症状：包括中医症候（如"气虚"、"血瘀"）和具体症状（如"头痛"、"乏力"）
 - 医家：包括古代医家（如"张仲景"、"李时珍"）和现代中医专家
 - 功效：使用中医传统表述（如"补气养血"、"清热解毒"）
-- 注意识别药材的性味归经信息（如"性温"、"归肝经"）
-- 识别配伍关系（如"君臣佐使"、"相须相使"）
+- 病因：致病因素（如"外感风邪"、"内伤饮食"、"情志不遂"）
+- 脉象：脉搏特征（如"浮脉"、"沉脉"、"数脉"、"迟脉"）
+- 诊断方法：中医诊断技术（如"望闻问切"、"舌诊"、"脉诊"）
+- 经络：经脉络脉（如"肝经"、"肺经"、"任脉"、"督脉"）
+- 穴位：针灸要穴（如"足三里"、"合谷"、"神门"）
+- 脏腑：中医脏腑（如"心"、"肝"、"脾"、"肺"、"肾"）
+- 其他：配伍理论、中医基本概念等不属于上述类型的重要实体
 
 -步骤-
 1. 识别所有实体。对于每个识别的实体，提取以下信息：
 - entity_name: 实体名称，使用中文
-- entity_type: 以下类型之一：[{entity_types}]
+- entity_type: 必须是以下类型之一：[{entity_types}]
+  ⚠️ 重要约束：
+  * 每个实体都必须分配一个类型，绝对不允许留空
+  * 只能使用上述预定义类型，不得创造新类型
+  * 如果实体不明确属于任何特定类型，使用"其他"类型
+  * 优先选择最匹配的具体类型，"其他"仅作为最后选择
 - entity_description: 实体属性和功能的全面描述
 将每个实体格式化为 ("entity"{tuple_delimiter}<entity_name>{tuple_delimiter}<entity_type>{tuple_delimiter}<entity_description>)
  
@@ -36,9 +46,9 @@
 -示例-
 ######################
 示例1:
-实体类型: 药材,方剂,功效
+实体类型: 药材,方剂,功效,经络,其他
 文本:
-当归补血汤由当归和黄芪组成，具有补气生血的功效。当归性温，归肝、心、脾经，具有补血活血、调经止痛的功效。黄芪性微温，归肺、脾经，具有补中益气、固表止汗的作用。
+当归补血汤由当归和黄芪组成，具有补气生血的功效。当归性温，归肝、心、脾经，具有补血活血、调经止痛的功效。黄芪性微温，归肺、脾经，具有补中益气、固表止汗的作用。方中体现了君臣佐使的配伍原则。
 ######################
 输出:
 ("entity"{tuple_delimiter}当归补血汤{tuple_delimiter}方剂{tuple_delimiter}当归补血汤是一个经典中医方剂，由当归和黄芪组成，具有补气生血的功效)
@@ -52,6 +62,16 @@
 ("entity"{tuple_delimiter}补血活血{tuple_delimiter}功效{tuple_delimiter}补血活血是当归的主要功效)
 {record_delimiter}
 ("entity"{tuple_delimiter}补中益气{tuple_delimiter}功效{tuple_delimiter}补中益气是黄芪的主要功效)
+{record_delimiter}
+("entity"{tuple_delimiter}肝经{tuple_delimiter}经络{tuple_delimiter}肝经是当归的归经之一)
+{record_delimiter}
+("entity"{tuple_delimiter}心经{tuple_delimiter}经络{tuple_delimiter}心经是当归的归经之一)
+{record_delimiter}
+("entity"{tuple_delimiter}脾经{tuple_delimiter}经络{tuple_delimiter}脾经是当归和黄芪共同的归经)
+{record_delimiter}
+("entity"{tuple_delimiter}肺经{tuple_delimiter}经络{tuple_delimiter}肺经是黄芪的归经之一)
+{record_delimiter}
+("entity"{tuple_delimiter}君臣佐使{tuple_delimiter}其他{tuple_delimiter}君臣佐使是中医方剂的配伍原则，不属于具体的实体类型)
 {record_delimiter}
 ("relationship"{tuple_delimiter}当归补血汤{tuple_delimiter}当归{tuple_delimiter}当归是当归补血汤的主要组成药材之一{tuple_delimiter}9)
 {record_delimiter}
@@ -67,9 +87,9 @@
 {completion_delimiter}
 
 示例2:
-实体类型: 疾病,症状,医家
+实体类型: 疾病,症状,医家,脉象,诊断方法,病因,其他
 文本:
-张仲景在《伤寒论》中描述，感冒常见症状包括发热、头痛、咳嗽、鼻塞等。风寒感冒多见恶寒重、发热轻的症状，而风热感冒则表现为发热重、恶寒轻。
+张仲景在《伤寒论》中描述，感冒常见症状包括发热、头痛、咳嗽、鼻塞等。风寒感冒多见恶寒重、发热轻的症状，脉象多为浮紧脉，而风热感冒则表现为发热重、恶寒轻，脉象多为浮数脉。中医诊断感冒主要通过望闻问切的方法，其病因多为外感风邪。
 ######################
 输出:
 ("entity"{tuple_delimiter}感冒{tuple_delimiter}疾病{tuple_delimiter}感冒是常见的呼吸道疾病，有多种类型)
@@ -89,6 +109,14 @@
 ("entity"{tuple_delimiter}恶寒{tuple_delimiter}症状{tuple_delimiter}恶寒是感冒的症状，在不同类型感冒中程度不同)
 {record_delimiter}
 ("entity"{tuple_delimiter}张仲景{tuple_delimiter}医家{tuple_delimiter}张仲景是东汉末年著名医学家，《伤寒论》的作者)
+{record_delimiter}
+("entity"{tuple_delimiter}浮紧脉{tuple_delimiter}脉象{tuple_delimiter}浮紧脉是风寒感冒的典型脉象特征)
+{record_delimiter}
+("entity"{tuple_delimiter}浮数脉{tuple_delimiter}脉象{tuple_delimiter}浮数脉是风热感冒的典型脉象特征)
+{record_delimiter}
+("entity"{tuple_delimiter}望闻问切{tuple_delimiter}诊断方法{tuple_delimiter}望闻问切是中医的四种基本诊断方法)
+{record_delimiter}
+("entity"{tuple_delimiter}外感风邪{tuple_delimiter}病因{tuple_delimiter}外感风邪是感冒的主要病因)
 {record_delimiter}
 ("relationship"{tuple_delimiter}感冒{tuple_delimiter}发热{tuple_delimiter}发热是感冒的典型症状{tuple_delimiter}8)
 {record_delimiter}

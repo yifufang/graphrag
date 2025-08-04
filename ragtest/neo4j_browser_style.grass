@@ -1,0 +1,177 @@
+
+node[type="药材"] {
+  color: #4CAF50;
+  border-color: #4CAF50;
+  text-color-internal: #FFFFFF;
+  diameter: 50px;
+  caption: {name};
+}
+
+node[type="方剂"] {
+  color: #2196F3;
+  border-color: #2196F3;
+  text-color-internal: #FFFFFF;
+  diameter: 50px;
+  caption: {name};
+}
+
+node[type="疾病"] {
+  color: #F44336;
+  border-color: #F44336;
+  text-color-internal: #FFFFFF;
+  diameter: 50px;
+  caption: {name};
+}
+
+node[type="症状"] {
+  color: #FF9800;
+  border-color: #FF9800;
+  text-color-internal: #FFFFFF;
+  diameter: 50px;
+  caption: {name};
+}
+
+node[type="医家"] {
+  color: #673AB7;
+  border-color: #673AB7;
+  text-color-internal: #FFFFFF;
+  diameter: 50px;
+  caption: {name};
+}
+
+node[type="功效"] {
+  color: #9C27B0;
+  border-color: #9C27B0;
+  text-color-internal: #FFFFFF;
+  diameter: 50px;
+  caption: {name};
+}
+
+node[type="HERB"] {
+  color: #4CAF50;
+  border-color: #4CAF50;
+  text-color-internal: #FFFFFF;
+  diameter: 50px;
+  caption: {name};
+}
+
+node[type="PRESCRIPTION"] {
+  color: #2196F3;
+  border-color: #2196F3;
+  text-color-internal: #FFFFFF;
+  diameter: 50px;
+  caption: {name};
+}
+
+node[type="DISEASE"] {
+  color: #F44336;
+  border-color: #F44336;
+  text-color-internal: #FFFFFF;
+  diameter: 50px;
+  caption: {name};
+}
+
+node[type="SYMPTOM"] {
+  color: #FF9800;
+  border-color: #FF9800;
+  text-color-internal: #FFFFFF;
+  diameter: 50px;
+  caption: {name};
+}
+
+node[type="DOCTOR"] {
+  color: #673AB7;
+  border-color: #673AB7;
+  text-color-internal: #FFFFFF;
+  diameter: 50px;
+  caption: {name};
+}
+
+node[type="EFFICACY"] {
+  color: #9C27B0;
+  border-color: #9C27B0;
+  text-color-internal: #FFFFFF;
+  diameter: 50px;
+  caption: {name};
+}
+
+node[type="PERSON"] {
+  color: #795548;
+  border-color: #795548;
+  text-color-internal: #FFFFFF;
+  diameter: 50px;
+  caption: {name};
+}
+
+node[type="ORGANIZATION"] {
+  color: #3F51B5;
+  border-color: #3F51B5;
+  text-color-internal: #FFFFFF;
+  diameter: 50px;
+  caption: {name};
+}
+
+node[type="GEO"] {
+  color: #009688;
+  border-color: #009688;
+  text-color-internal: #FFFFFF;
+  diameter: 50px;
+  caption: {name};
+}
+
+node[type="EVENT"] {
+  color: #FF5722;
+  border-color: #FF5722;
+  text-color-internal: #FFFFFF;
+  diameter: 50px;
+  caption: {name};
+}
+
+node[type="治疗"] {
+  color: #E91E63;
+  border-color: #E91E63;
+  text-color-internal: #FFFFFF;
+  diameter: 50px;
+  caption: {name};
+}
+
+node[type="经络"] {
+  color: #607D8B;
+  border-color: #607D8B;
+  text-color-internal: #FFFFFF;
+  diameter: 50px;
+  caption: {name};
+}
+
+node[type="穴位"] {
+  color: #795548;
+  border-color: #795548;
+  text-color-internal: #FFFFFF;
+  diameter: 50px;
+  caption: {name};
+}
+
+node[type="体质"] {
+  color: #CDDC39;
+  border-color: #CDDC39;
+  text-color-internal: #FFFFFF;
+  diameter: 50px;
+  caption: {name};
+}
+
+node {
+  color: #616161;
+  border-color: #616161;
+  text-color-internal: #FFFFFF;
+  diameter: 40px;
+  caption: {name};
+}
+
+relationship {
+  color: #A5ABB6;
+  shaft-width: 2px;
+  font-size: 8px;
+  padding: 3px;
+  text-color-external: #000000;
+  text-color-internal: #FFFFFF;
+}
