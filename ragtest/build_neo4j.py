@@ -129,7 +129,7 @@ class TCMNeo4jBuilder:
                 except Exception as e:
                     print(f"   ⚠️  {cmd}: {e}")
     
-    def load_entities(self, entities_file: str = "output/entities.parquet") -> pd.DataFrame:
+    def load_entities(self, entities_file: str = "./output/entities.parquet") -> pd.DataFrame:
         """加载实体数据"""
         print(f"📚 加载实体数据: {entities_file}")
         try:
@@ -150,7 +150,7 @@ class TCMNeo4jBuilder:
             print(f"❌ 加载实体数据失败: {e}")
             return pd.DataFrame()
     
-    def load_relationships(self, relationships_file: str = "output/relationships.parquet") -> pd.DataFrame:
+    def load_relationships(self, relationships_file: str = "./output/relationships.parquet") -> pd.DataFrame:
         """加载关系数据"""
         print(f"🔗 加载关系数据: {relationships_file}")
         try:

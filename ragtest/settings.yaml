@@ -82,7 +82,7 @@ embed_text:
 extract_graph:
   model_id: default_chat_model
   prompt: "prompts/extract_graph.txt"
-  entity_types: [药材,方剂,疾病,症状,医家,功效,病因,脉象,诊断方法,经络,穴位,脏腑,其他]  # 扩展中医实体类型，添加兜底类型
+  entity_types: [药材,方剂,疾病,症状,医家,功效,病因,脉象,诊断方法,经络,穴位,脏腑]  # 扩展中医实体类型，只保留明确定义的类型
   max_gleanings: 1              # 增加到2次迭代，提高中医实体关系提取的完整性
 
 summarize_descriptions:

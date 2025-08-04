@@ -16,17 +16,18 @@
 - 经络：经脉络脉（如"肝经"、"肺经"、"任脉"、"督脉"）
 - 穴位：针灸要穴（如"足三里"、"合谷"、"神门"）
 - 脏腑：中医脏腑（如"心"、"肝"、"脾"、"肺"、"肾"）
-- 其他：配伍理论、中医基本概念等不属于上述类型的重要实体
+
 
 -步骤-
 1. 识别所有实体。对于每个识别的实体，提取以下信息：
 - entity_name: 实体名称，使用中文
 - entity_type: 必须是以下类型之一：[{entity_types}]
   ⚠️ 重要约束：
-  * 每个实体都必须分配一个类型，绝对不允许留空
-  * 只能使用上述预定义类型，不得创造新类型
-  * 如果实体不明确属于任何特定类型，使用"其他"类型
-  * 优先选择最匹配的具体类型，"其他"仅作为最后选择
+  * 只识别明确属于上述预定义类型的实体
+  * 如果实体不明确属于任何预定义类型，请跳过该实体
+  * 绝对不允许留空type字段
+  * 绝对不允许创造新的类型名称
+  * 确保识别的每个实体都有明确的类型归属
 - entity_description: 实体属性和功能的全面描述
 将每个实体格式化为 ("entity"{tuple_delimiter}<entity_name>{tuple_delimiter}<entity_type>{tuple_delimiter}<entity_description>)
  
@@ -34,7 +35,11 @@
 对于每对相关实体，提取以下信息：
 - source_entity: 源实体的名称，如步骤1中所识别
 - target_entity: 目标实体的名称，如步骤1中所识别
-- relationship_description: 解释为什么您认为源实体和目标实体彼此相关
+- relationship_description: 按照以下格式描述关系
+  📋 格式要求: [关系类型] 具体关系描述
+  🎯 中医关系类型包括: 治疗, 组成, 功效, 症状表现, 归经, 病因, 脉象, 诊断, 配伍, 师承
+  ⚠️  如果不属于上述明确类型，使用 [相关]
+  📝 示例: "[治疗] 人参主要用于治疗气虚证候"
 - relationship_strength: 表示源实体和目标实体之间关系强度的数值评分（1-10）
 将每个关系格式化为 ("relationship"{tuple_delimiter}<source_entity>{tuple_delimiter}<target_entity>{tuple_delimiter}<relationship_description>{tuple_delimiter}<relationship_strength>)
  
@@ -46,9 +51,9 @@
 -示例-
 ######################
 示例1:
-实体类型: 药材,方剂,功效,经络,其他
+实体类型: 药材,方剂,功效,经络
 文本:
-当归补血汤由当归和黄芪组成，具有补气生血的功效。当归性温，归肝、心、脾经，具有补血活血、调经止痛的功效。黄芪性微温，归肺、脾经，具有补中益气、固表止汗的作用。方中体现了君臣佐使的配伍原则。
+当归补血汤由当归和黄芪组成，具有补气生血的功效。当归性温，归肝、心、脾经，具有补血活血、调经止痛的功效。黄芪性微温，归肺、脾经，具有补中益气、固表止汗的作用。
 ######################
 输出:
 ("entity"{tuple_delimiter}当归补血汤{tuple_delimiter}方剂{tuple_delimiter}当归补血汤是一个经典中医方剂，由当归和黄芪组成，具有补气生血的功效)
@@ -71,23 +76,24 @@
 {record_delimiter}
 ("entity"{tuple_delimiter}肺经{tuple_delimiter}经络{tuple_delimiter}肺经是黄芪的归经之一)
 {record_delimiter}
-("entity"{tuple_delimiter}君臣佐使{tuple_delimiter}其他{tuple_delimiter}君臣佐使是中医方剂的配伍原则，不属于具体的实体类型)
+
+("relationship"{tuple_delimiter}当归补血汤{tuple_delimiter}当归{tuple_delimiter}[组成] 当归补血汤的主要组成药材包括当归{tuple_delimiter}9)
 {record_delimiter}
-("relationship"{tuple_delimiter}当归补血汤{tuple_delimiter}当归{tuple_delimiter}当归是当归补血汤的主要组成药材之一{tuple_delimiter}9)
+("relationship"{tuple_delimiter}当归补血汤{tuple_delimiter}黄芪{tuple_delimiter}[组成] 当归补血汤的主要组成药材包括黄芪{tuple_delimiter}9)
 {record_delimiter}
-("relationship"{tuple_delimiter}当归补血汤{tuple_delimiter}黄芪{tuple_delimiter}黄芪是当归补血汤的主要组成药材之一{tuple_delimiter}9)
+("relationship"{tuple_delimiter}当归补血汤{tuple_delimiter}补气生血{tuple_delimiter}[功效] 当归补血汤具有补气生血的主要功效{tuple_delimiter}9)
 {record_delimiter}
-("relationship"{tuple_delimiter}当归补血汤{tuple_delimiter}补气生血{tuple_delimiter}当归补血汤具有补气生血的主要功效{tuple_delimiter}9)
+("relationship"{tuple_delimiter}当归{tuple_delimiter}补血活血{tuple_delimiter}[功效] 当归具有补血活血的功效{tuple_delimiter}9)
 {record_delimiter}
-("relationship"{tuple_delimiter}当归{tuple_delimiter}补血活血{tuple_delimiter}当归具有补血活血的功效{tuple_delimiter}9)
+("relationship"{tuple_delimiter}黄芪{tuple_delimiter}补中益气{tuple_delimiter}[功效] 黄芪具有补中益气的功效{tuple_delimiter}9)
 {record_delimiter}
-("relationship"{tuple_delimiter}黄芪{tuple_delimiter}补中益气{tuple_delimiter}黄芪具有补中益气的功效{tuple_delimiter}9)
+("relationship"{tuple_delimiter}当归{tuple_delimiter}肝经{tuple_delimiter}[归经] 当归归肝经，具有养血调经作用{tuple_delimiter}8)
 {record_delimiter}
-("relationship"{tuple_delimiter}当归{tuple_delimiter}黄芪{tuple_delimiter}当归和黄芪在当归补血汤中配伍使用，补血与补气相结合{tuple_delimiter}8)
+("relationship"{tuple_delimiter}当归{tuple_delimiter}黄芪{tuple_delimiter}[配伍] 当归和黄芪在方剂中配伍使用，补血与补气相结合{tuple_delimiter}8)
 {completion_delimiter}
 
 示例2:
-实体类型: 疾病,症状,医家,脉象,诊断方法,病因,其他
+实体类型: 疾病,症状,医家,脉象,诊断方法,病因
 文本:
 张仲景在《伤寒论》中描述，感冒常见症状包括发热、头痛、咳嗽、鼻塞等。风寒感冒多见恶寒重、发热轻的症状，脉象多为浮紧脉，而风热感冒则表现为发热重、恶寒轻，脉象多为浮数脉。中医诊断感冒主要通过望闻问切的方法，其病因多为外感风邪。
 ######################
@@ -118,19 +124,21 @@
 {record_delimiter}
 ("entity"{tuple_delimiter}外感风邪{tuple_delimiter}病因{tuple_delimiter}外感风邪是感冒的主要病因)
 {record_delimiter}
-("relationship"{tuple_delimiter}感冒{tuple_delimiter}发热{tuple_delimiter}发热是感冒的典型症状{tuple_delimiter}8)
+("relationship"{tuple_delimiter}感冒{tuple_delimiter}发热{tuple_delimiter}[症状表现] 发热是感冒的典型症状表现{tuple_delimiter}8)
 {record_delimiter}
-("relationship"{tuple_delimiter}感冒{tuple_delimiter}头痛{tuple_delimiter}头痛是感冒的常见症状{tuple_delimiter}7)
+("relationship"{tuple_delimiter}感冒{tuple_delimiter}头痛{tuple_delimiter}[症状表现] 头痛是感冒的常见症状表现{tuple_delimiter}7)
 {record_delimiter}
-("relationship"{tuple_delimiter}感冒{tuple_delimiter}咳嗽{tuple_delimiter}咳嗽是感冒的常见症状{tuple_delimiter}8)
+("relationship"{tuple_delimiter}感冒{tuple_delimiter}咳嗽{tuple_delimiter}[症状表现] 咳嗽是感冒的常见症状表现{tuple_delimiter}8)
 {record_delimiter}
-("relationship"{tuple_delimiter}感冒{tuple_delimiter}鼻塞{tuple_delimiter}鼻塞是感冒的常见症状{tuple_delimiter}7)
+("relationship"{tuple_delimiter}风寒感冒{tuple_delimiter}浮紧脉{tuple_delimiter}[脉象] 风寒感冒的典型脉象表现为浮紧脉{tuple_delimiter}8)
 {record_delimiter}
-("relationship"{tuple_delimiter}风寒感冒{tuple_delimiter}恶寒{tuple_delimiter}风寒感冒患者恶寒症状较重{tuple_delimiter}9)
+("relationship"{tuple_delimiter}风热感冒{tuple_delimiter}浮数脉{tuple_delimiter}[脉象] 风热感冒的典型脉象表现为浮数脉{tuple_delimiter}8)
 {record_delimiter}
-("relationship"{tuple_delimiter}风热感冒{tuple_delimiter}发热{tuple_delimiter}风热感冒患者发热症状较重{tuple_delimiter}9)
+("relationship"{tuple_delimiter}望闻问切{tuple_delimiter}感冒{tuple_delimiter}[诊断] 中医通过望闻问切的方法诊断感冒{tuple_delimiter}7)
 {record_delimiter}
-("relationship"{tuple_delimiter}张仲景{tuple_delimiter}感冒{tuple_delimiter}张仲景在《伤寒论》中对感冒有详细描述{tuple_delimiter}8)
+("relationship"{tuple_delimiter}外感风邪{tuple_delimiter}感冒{tuple_delimiter}[病因] 外感风邪是感冒的主要病因{tuple_delimiter}9)
+{record_delimiter}
+("relationship"{tuple_delimiter}张仲景{tuple_delimiter}感冒{tuple_delimiter}[相关] 张仲景在《伤寒论》中对感冒有详细论述{tuple_delimiter}8)
 {completion_delimiter}
 
 ######################

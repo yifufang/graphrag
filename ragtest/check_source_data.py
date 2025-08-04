@@ -9,7 +9,7 @@ import os
 
 def check_entities_parquet():
     """检查entities.parquet原始数据"""
-    entities_file = "output/entities.parquet"
+    entities_file = "./output/entities.parquet"
     
     if not os.path.exists(entities_file):
         print(f"❌ 文件不存在: {entities_file}")
