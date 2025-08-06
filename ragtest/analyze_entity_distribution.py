@@ -9,8 +9,8 @@ try:
     
     # 尝试不同的文件名
     possible_files = [
-        './output/entities.parquet',
-        './output/entities.parquet'
+        './output2/entities.parquet',
+        './output2/entities.parquet'
     ]
     
     df = None

@@ -18,55 +18,26 @@ warnings.filterwarnings('ignore')
 class TCMNeo4jBuilder:
     """中医知识图谱Neo4j构建器"""
     
-    def __init__(self, uri: str = "neo4j://localhost", username: str = "neo4j", password: str = "password"):
+    def __init__(self, uri: str = "neo4j://localhost", username: str = "neo4j", password: str = "password", database: str = "neo4j"):
         """初始化Neo4j连接"""
         self.uri = uri
         self.username = username
         self.password = password
+        self.database = database
         self.driver = None
         
-        # 中医实体类型颜色配置 - 匹配settings.yaml中定义的6个核心实体类型
-        self.entity_colors = {
-            # 核心中医实体类型 (与settings.yaml中entity_types匹配)
-            "药材": "#4CAF50",      # 绿色 - 药材
-            "方剂": "#2196F3",      # 蓝色 - 方剂
-            "疾病": "#F44336",      # 红色 - 疾病
-            "症状": "#FF9800",      # 橙色 - 症状
-            "医家": "#673AB7",      # 深紫色 - 医家
-            "功效": "#9C27B0",      # 紫色 - 功效
-            
-            # 英文对应 (兼容性)
-            "HERB": "#4CAF50",         # 药材
-            "PRESCRIPTION": "#2196F3",  # 方剂
-            "DISEASE": "#F44336",       # 疾病
-            "SYMPTOM": "#FF9800",       # 症状
-            "DOCTOR": "#673AB7",        # 医家
-            "EFFICACY": "#9C27B0",      # 功效
-            
-            # GraphRAG默认类型
-            "PERSON": "#795548",       # 棕色 - 人物
-            "ORGANIZATION": "#3F51B5", # 靛蓝色 - 组织
-            "GEO": "#009688",          # 青色 - 地理位置
-            "EVENT": "#FF5722",        # 深橙色 - 事件
-            
-            # 其他可能的中医相关类型
-            "治疗": "#E91E63",      # 粉红色 - 治疗方法
-            "经络": "#607D8B",      # 灰蓝色 - 经络
-            "穴位": "#795548",      # 棕色 - 穴位
-            "体质": "#CDDC39",      # 青绿色 - 体质
-            
-            # 默认颜色
-            "DEFAULT": "#616161"       # 灰色
-        }
+        # 动态类型映射将在load_entities时生成
+        self.type_to_label = {}
+        self.actual_types = set()
     
     def connect(self) -> bool:
         """连接到Neo4j数据库"""
         try:
-            print("🔌 连接到Neo4j数据库...")
+            print(f"🔌 连接到Neo4j数据库: {self.database}...")
             self.driver = GraphDatabase.driver(self.uri, auth=(self.username, self.password))
             
             # 测试连接
-            with self.driver.session() as session:
+            with self.driver.session(database=self.database) as session:
                 result = session.run("RETURN 'Hello Neo4j' as message")
                 record = result.single()
                 if record:
@@ -86,6 +57,24 @@ class TCMNeo4jBuilder:
             self.driver.close()
             print("🔌 数据库连接已关闭")
     
+    def list_databases(self):
+        """列出可用的数据库"""
+        try:
+            print("📋 可用数据库列表:")
+            # 连接到默认数据库来获取数据库列表
+            temp_driver = GraphDatabase.driver(self.uri, auth=(self.username, self.password))
+            with temp_driver.session() as session:
+                result = session.run("SHOW DATABASES")
+                for record in result:
+                    db_name = record["name"]
+                    db_role = record.get("role", "unknown")
+                    db_address = record.get("address", "unknown")
+                    print(f"   - {db_name} (role: {db_role}, address: {db_address})")
+            temp_driver.close()
+        except Exception as e:
+            print(f"❌ 获取数据库列表失败: {e}")
+            print("   请确保Neo4j服务正在运行")
+    
     def clear_database(self) -> bool:
         """清空数据库"""
         try:
@@ -93,7 +82,7 @@ class TCMNeo4jBuilder:
             if not self.driver:
                 print("❌ 数据库连接未建立")
                 return False
-            with self.driver.session() as session:
+            with self.driver.session(database=self.database) as session:
                 # 删除所有数据
                 session.run("MATCH (n) DETACH DELETE n")
                 print("✅ 数据库已清空")
@@ -110,18 +99,27 @@ class TCMNeo4jBuilder:
             print("❌ 数据库连接未建立")
             return
         
-        constraints_and_indexes = [
-            # 实体约束和索引
-            "CREATE CONSTRAINT entity_id_unique IF NOT EXISTS FOR (e:Entity) REQUIRE e.id IS UNIQUE",
-            "CREATE INDEX entity_name_index IF NOT EXISTS FOR (e:Entity) ON (e.name)",
-            "CREATE INDEX entity_type_index IF NOT EXISTS FOR (e:Entity) ON (e.type)",
-            
-            # 关系索引
+        # 为所有可能的实体类型创建约束和索引
+        entity_labels = set(self.type_to_label.values())
+        entity_labels.add("Entity")  # 添加默认标签
+        
+        constraints_and_indexes = []
+        
+        # 为每个实体类型创建约束和索引
+        for label in entity_labels:
+            constraints_and_indexes.extend([
+                f"CREATE CONSTRAINT {label.lower()}_id_unique IF NOT EXISTS FOR (e:{label}) REQUIRE e.id IS UNIQUE",
+                f"CREATE INDEX {label.lower()}_name_index IF NOT EXISTS FOR (e:{label}) ON (e.name)",
+                f"CREATE INDEX {label.lower()}_type_index IF NOT EXISTS FOR (e:{label}) ON (e.type)",
+            ])
+        
+        # 关系索引
+        constraints_and_indexes.extend([
             "CREATE INDEX relationship_weight_index IF NOT EXISTS FOR ()-[r:RELATED_TO]-() ON (r.weight)",
             "CREATE INDEX relationship_rank_index IF NOT EXISTS FOR ()-[r:RELATED_TO]-() ON (r.rank)"
-        ]
+        ])
         
-        with self.driver.session() as session:
+        with self.driver.session(database=self.database) as session:
             for cmd in constraints_and_indexes:
                 try:
                     session.run(cmd)
@@ -129,7 +127,7 @@ class TCMNeo4jBuilder:
                 except Exception as e:
                     print(f"   ⚠️  {cmd}: {e}")
     
-    def load_entities(self, entities_file: str = "./output/entities.parquet") -> pd.DataFrame:
+    def load_entities(self, entities_file: str = "./output2/entities.parquet") -> pd.DataFrame:
         """加载实体数据"""
         print(f"📚 加载实体数据: {entities_file}")
         try:
@@ -143,6 +141,10 @@ class TCMNeo4jBuilder:
                 print("📊 实体类型分布:")
                 for entity_type, count in type_counts.head(10).items():
                     print(f"   {entity_type}: {count}")
+                
+                # 动态生成类型映射
+                unique_types = entities_df['type'].unique()
+                self.generate_type_mappings(unique_types)
             
             return entities_df
             
@@ -150,7 +152,7 @@ class TCMNeo4jBuilder:
             print(f"❌ 加载实体数据失败: {e}")
             return pd.DataFrame()
     
-    def load_relationships(self, relationships_file: str = "./output/relationships.parquet") -> pd.DataFrame:
+    def load_relationships(self, relationships_file: str = "./output2/relationships.parquet") -> pd.DataFrame:
         """加载关系数据"""
         print(f"🔗 加载关系数据: {relationships_file}")
         try:
@@ -171,24 +173,59 @@ class TCMNeo4jBuilder:
             print(f"❌ 加载关系数据失败: {e}")
             return pd.DataFrame()
     
-    def get_entity_color(self, entity_type: str) -> str:
-        """根据实体类型获取颜色"""
-        if not entity_type:
-            return self.entity_colors["DEFAULT"]
+    def generate_type_mappings(self, entity_types):
+        """根据实际的entity types生成Neo4j标签映射"""
+        print("📋 动态生成实体类型映射...")
+        
+        # 清空现有映射
+        self.type_to_label.clear()
+        
+        type_count = 0
+        for entity_type in entity_types:
+            if pd.isna(entity_type) or str(entity_type).strip() == '':
+                self.type_to_label[''] = 'Unknown'
+                continue
+                
+            clean_type = str(entity_type).strip().strip('"')
+            if clean_type:
+                # 生成合适的Neo4j标签
+                label = self._generate_neo4j_label(clean_type)
+                self.type_to_label[clean_type] = label
+                type_count += 1
+                
+        print(f"   生成了 {type_count} 个类型映射")
+        # 显示前10个映射
+        for i, (orig_type, label) in enumerate(list(self.type_to_label.items())[:10]):
+            if orig_type:  # 不显示空值映射
+                print(f"   {orig_type} → {label}")
+        if len(self.type_to_label) > 10:
+            print(f"   ... 还有 {len(self.type_to_label) - 10} 个映射")
+    
+    def _generate_neo4j_label(self, chinese_type: str) -> str:
+        """为中文类型生成合适的Neo4j标签"""
+        import re
+        
+        # Neo4j支持中文标签，只需要简单清理即可
+        # 移除特殊字符，保留中文、英文、数字
+        clean_name = re.sub(r'[（）()\[\]{}，。、/\\<>|*?:"\'`~!@#$%^&+=\s]', '', chinese_type)
+        
+        # 如果清理后不为空，直接使用
+        if clean_name:
+            return clean_name
+        else:
+            # 空值或无效名称
+            return "Unknown"
+    
+    def get_entity_label(self, entity_type: str) -> str:
+        """根据实体类型获取Neo4j标签"""
+        if not entity_type or pd.isna(entity_type) or str(entity_type).strip() == '':
+            return "Unknown"  # 空值或无效类型
         
         # 清理类型字符串
-        clean_type = str(entity_type).strip().strip('"').upper()
+        clean_type = str(entity_type).strip().strip('"')
         
-        # 尝试精确匹配
-        if clean_type in self.entity_colors:
-            return self.entity_colors[clean_type]
-        
-        # 尝试包含匹配
-        for type_key, color in self.entity_colors.items():
-            if type_key.upper() in clean_type or clean_type in type_key.upper():
-                return color
-        
-        return self.entity_colors["DEFAULT"]
+        # 查找映射，如果没有就使用默认
+        return self.type_to_label.get(clean_type, "Entity")
     
     def create_entities(self, entities_df: pd.DataFrame, batch_size: int = 1000):
         """批量创建实体节点"""
@@ -201,15 +238,15 @@ class TCMNeo4jBuilder:
         total_entities = len(entities_df)
         created_count = 0
         
-        with self.driver.session() as session:
+        with self.driver.session(database=self.database) as session:
             for i in range(0, total_entities, batch_size):
                 batch = entities_df.iloc[i:i+batch_size]
                 
-                # 准备批次数据
-                entities_data = []
+                # 按标签分组实体数据
+                entities_by_label = {}
                 for _, row in batch.iterrows():
                     entity_type = str(row.get('type', '')).strip().strip('"') if pd.notna(row.get('type')) else ''
-                    color = self.get_entity_color(entity_type)
+                    label = self.get_entity_label(entity_type)
                     
                     entity_data = {
                         'id': str(row.get('id', '')),
@@ -217,32 +254,70 @@ class TCMNeo4jBuilder:
                         'type': entity_type,
                         'description': str(row.get('description', ''))[:1000] if pd.notna(row.get('description')) else '',
                         'human_readable_id': int(row.get('human_readable_id', 0)) if pd.notna(row.get('human_readable_id')) else 0,
-                        'degree': int(row.get('degree', 0)) if pd.notna(row.get('degree')) else 0,
-                        'color': color
+                        'degree': int(row.get('degree', 0)) if pd.notna(row.get('degree')) else 0
                     }
-                    entities_data.append(entity_data)
-                
-                # 批量插入
-                try:
-                    session.run("""
-                        UNWIND $entities as entity
-                        CREATE (e:Entity)
-                        SET e.id = entity.id,
-                            e.name = entity.name,
-                            e.type = entity.type,
-                            e.description = entity.description,
-                            e.human_readable_id = entity.human_readable_id,
-                            e.degree = entity.degree,
-                            e.color = entity.color
-                    """, entities=entities_data)
                     
-                    created_count += len(batch)
+                    if label not in entities_by_label:
+                        entities_by_label[label] = []
+                    entities_by_label[label].append(entity_data)
+                
+                # 按标签批量插入
+                batch_created = 0
+                try:
+                    for label, label_entities in entities_by_label.items():
+                        cypher_query = f"""
+                            UNWIND $entities as entity
+                            CREATE (e:{label})
+                            SET e.id = entity.id,
+                                e.name = entity.name,
+                                e.type = entity.type,
+                                e.description = entity.description,
+                                e.human_readable_id = entity.human_readable_id,
+                                e.degree = entity.degree
+                        """
+                        session.run(cypher_query, entities=label_entities)
+                        batch_created += len(label_entities)
+                        print(f"   📋 创建了 {len(label_entities)} 个 {label} 实体")
+                    
+                    created_count += batch_created
                     print(f"   ✅ 已创建 {created_count}/{total_entities} 个实体 ({created_count/total_entities*100:.1f}%)")
                     
                 except Exception as e:
                     print(f"   ❌ 批次 {i//batch_size + 1} 创建失败: {e}")
         
         print(f"🎉 实体创建完成! 总计: {created_count}")
+        
+        # 显示实体类型统计
+        self.show_entity_statistics()
+    
+    def show_entity_statistics(self):
+        """显示数据库中各类型实体的统计信息"""
+        print("📊 实体类型统计:")
+        
+        try:
+            with self.driver.session(database=self.database) as session:
+                # 获取所有标签及其实体数量
+                result = session.run("CALL db.labels() YIELD label RETURN label")
+                labels = [record["label"] for record in result]
+                
+                total_entities = 0
+                for label in sorted(labels):
+                    count_result = session.run(f"MATCH (n:{label}) RETURN count(n) as count")
+                    count = count_result.single()["count"]
+                    if count > 0:
+                        # 查找对应的中文类型
+                        chinese_type = ""
+                        for zh_type, en_label in self.type_to_label.items():
+                            if en_label == label:
+                                chinese_type = f" ({zh_type})"
+                                break
+                        print(f"   {label}{chinese_type}: {count}")
+                        total_entities += count
+                
+                print(f"   总计: {total_entities} 个实体")
+                
+        except Exception as e:
+            print(f"   ❌ 获取统计信息失败: {e}")
     
     def create_relationships(self, relationships_df: pd.DataFrame, batch_size: int = 1000):
         """批量创建关系"""
@@ -251,7 +326,7 @@ class TCMNeo4jBuilder:
         total_relationships = len(relationships_df)
         created_count = 0
         
-        with self.driver.session() as session:
+        with self.driver.session(database=self.database) as session:
             for i in range(0, total_relationships, batch_size):
                 batch = relationships_df.iloc[i:i+batch_size]
                 
@@ -268,12 +343,12 @@ class TCMNeo4jBuilder:
                     }
                     relationships_data.append(relationship_data)
                 
-                # 批量插入关系
+                # 批量插入关系 - 使用通用标签匹配
                 try:
                     session.run("""
                         UNWIND $relationships as rel
-                        MATCH (source:Entity {name: rel.source_name})
-                        MATCH (target:Entity {name: rel.target_name})
+                        MATCH (source {name: rel.source_name})
+                        MATCH (target {name: rel.target_name})
                         CREATE (source)-[r:RELATED_TO]->(target)
                         SET r.id = rel.id,
                             r.description = rel.description,
@@ -289,33 +364,88 @@ class TCMNeo4jBuilder:
         
         print(f"🎉 关系创建完成! 总计: {created_count}")
     
+    def demo_typed_queries(self):
+        """演示基于类型标签的查询优势"""
+        print("\n🔍 演示多标签查询功能:")
+        
+        try:
+            with self.driver.session(database=self.database) as session:
+                # 示例查询1：查找所有药材
+                print("\n1. 查找所有药材 (Drug标签):")
+                result = session.run("MATCH (d:Drug) RETURN d.name, d.type LIMIT 5")
+                for record in result:
+                    print(f"   - {record['d.name']} ({record['d.type']})")
+                
+                # 示例查询2：查找药材到方剂的关系
+                print("\n2. 查找药材与方剂的治疗关系:")
+                result = session.run("""
+                    MATCH (d:Drug)-[r:RELATED_TO]-(f:Formula)
+                    WHERE r.description CONTAINS '治疗' OR r.description CONTAINS '组成'
+                    RETURN d.name, f.name, r.description LIMIT 3
+                """)
+                for record in result:
+                    desc = record['r.description'][:50] + "..." if len(record['r.description']) > 50 else record['r.description']
+                    print(f"   - {record['d.name']} ↔ {record['f.name']}: {desc}")
+                
+                # 示例查询3：疾病相关的治疗网络
+                print("\n3. 查找疾病相关的治疗网络:")
+                result = session.run("""
+                    MATCH (disease:Disease)-[r1:RELATED_TO]-(formula:Formula)-[r2:RELATED_TO]-(drug:Drug)
+                    RETURN disease.name, formula.name, drug.name LIMIT 3
+                """)
+                for record in result:
+                    print(f"   - 疾病: {record['disease.name']} → 方剂: {record['formula.name']} → 药材: {record['drug.name']}")
+                
+                # 示例查询4：统计各类型实体的连接度
+                print("\n4. 各类型实体的平均连接度:")
+                labels = ['Drug', 'Formula', 'Disease', 'Symptom', 'Doctor', 'Efficacy']
+                for label in labels:
+                    result = session.run(f"""
+                        MATCH (n:{label})
+                        OPTIONAL MATCH (n)-[r]-()
+                        WITH n, count(r) as degree
+                        RETURN avg(degree) as avg_degree, count(n) as node_count
+                    """)
+                    record = result.single()
+                    if record and record['node_count'] > 0:
+                        print(f"   - {label}: 平均连接度 {record['avg_degree']:.2f}, 节点数 {record['node_count']}")
+                
+        except Exception as e:
+            print(f"   ❌ 查询演示失败: {e}")
+    
     def get_database_statistics(self) -> Dict[str, Any]:
         """获取数据库统计信息"""
         print("📊 获取数据库统计信息...")
         
         stats = {}
         
-        with self.driver.session() as session:
+        with self.driver.session(database=self.database) as session:
             try:
-                # 节点统计
-                result = session.run("MATCH (n:Entity) RETURN count(n) as node_count")
+                # 节点统计 - 统计所有实体类型
+                result = session.run("MATCH (n) WHERE size(labels(n)) > 0 RETURN count(n) as node_count")
                 stats['node_count'] = result.single()["node_count"]
                 
                 # 关系统计
                 result = session.run("MATCH ()-[r:RELATED_TO]->() RETURN count(r) as rel_count")
                 stats['relationship_count'] = result.single()["rel_count"]
                 
-                # 实体类型统计
-                result = session.run("""
-                    MATCH (n:Entity) 
-                    RETURN n.type as type, count(n) as count, n.color as color
-                    ORDER BY count DESC
-                """)
-                stats['entity_types'] = [(record["type"], record["count"], record["color"]) for record in result]
+                # 实体类型统计 - 手动统计各标签
+                stats['entity_types'] = []
+                label_result = session.run("CALL db.labels() YIELD label RETURN label")
+                labels = [record["label"] for record in label_result]
                 
-                # 连接度统计
+                for label in labels:
+                    count_result = session.run(f"MATCH (n:{label}) RETURN count(n) as count")
+                    record = count_result.single()
+                    if record and record["count"] > 0:
+                        stats['entity_types'].append((label, record["count"]))
+                
+                # 按数量排序
+                stats['entity_types'].sort(key=lambda x: x[1], reverse=True)
+                
+                # 连接度统计 - 统计所有实体
                 result = session.run("""
-                    MATCH (n:Entity)
+                    MATCH (n) WHERE size(labels(n)) > 0
                     RETURN avg(n.degree) as avg_degree, max(n.degree) as max_degree, min(n.degree) as min_degree
                 """)
                 degree_stats = result.single()
@@ -348,59 +478,38 @@ class TCMNeo4jBuilder:
         
         if 'entity_types' in stats:
             print(f"\n🏷️  实体类型分布:")
-            for entity_type, count, color in stats['entity_types']:
-                print(f"   {entity_type}: {count:,} (颜色: {color})")
+            for entity_type, count in stats['entity_types']:
+                print(f"   {entity_type}: {count:,}")
     
     def generate_browser_style(self) -> str:
-        """生成Neo4j浏览器样式配置"""
-        print("🎨 生成Neo4j浏览器样式...")
+        """生成Neo4j浏览器基础样式配置"""
+        print("🎨 生成Neo4j浏览器基础样式...")
         
-        # 构建样式字符串
-        styles = []
-        
-        # 为每种实体类型生成样式
-        for entity_type, color in self.entity_colors.items():
-            if entity_type != "DEFAULT":
-                style = f"""
-node[type="{entity_type}"] {{
-  color: {color};
-  border-color: {color};
-  text-color-internal: #FFFFFF;
-  diameter: 50px;
-  caption: {{name}};
-}}"""
-                styles.append(style)
-        
-        # 默认样式
-        default_style = f"""
-node {{
-  color: {self.entity_colors['DEFAULT']};
-  border-color: {self.entity_colors['DEFAULT']};
+        # 基础样式
+        basic_style = """node {
+  color: #8DCC93;
+  border-color: #5AA25F;
   text-color-internal: #FFFFFF;
   diameter: 40px;
-  caption: {{name}};
-}}
+  caption: {name};
+}
 
-relationship {{
+relationship {
   color: #A5ABB6;
   shaft-width: 2px;
   font-size: 8px;
   padding: 3px;
   text-color-external: #000000;
   text-color-internal: #FFFFFF;
-}}"""
-        
-        styles.append(default_style)
-        
-        full_style = "\n".join(styles)
+}"""
         
         # 保存到文件
         with open("neo4j_browser_style.grass", "w", encoding="utf-8") as f:
-            f.write(full_style)
+            f.write(basic_style)
         
-        print("✅ 样式文件已保存到: neo4j_browser_style.grass")
+        print("✅ 基础样式文件已保存到: neo4j_browser_style.grass")
         
-        return full_style
+        return basic_style
     
     def print_usage_instructions(self):
         """打印使用说明"""
@@ -448,10 +557,16 @@ def main():
     print("🏥 中医知识图谱Neo4j数据库构建器")
     print("="*60)
     
-    # 初始化构建器
+    # 初始化构建器 - 可以指定数据库名称
+    # 例如: builder = TCMNeo4jBuilder(database="tongue")
     builder = TCMNeo4jBuilder()
     
     try:
+        # 0. 列出可用数据库 (可选)
+        show_databases = input("是否显示可用数据库列表？(y/N): ").lower().strip()
+        if show_databases == 'y':
+            builder.list_databases()
+        
         # 1. 连接数据库
         if not builder.connect():
             return
@@ -503,6 +618,9 @@ def main():
         print(f"   总计: {entities_time + relationships_time:.2f}秒")
         
         print(f"\n🎉 中医知识图谱构建完成!")
+        
+        # 演示多标签查询功能
+        builder.demo_typed_queries()
         
     except KeyboardInterrupt:
         print("\n\n❌ 用户中断操作")
