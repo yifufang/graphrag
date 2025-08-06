@@ -82,8 +82,8 @@ embed_text:
 extract_graph:
   model_id: default_chat_model
   prompt: "prompts/extract_graph.txt"
-  entity_types: [药材,方剂,疾病,症状,医家,功效,病因,脉象,诊断方法,经络,穴位,脏腑]  # 扩展中医实体类型，只保留明确定义的类型
-  max_gleanings: 1              # 增加到2次迭代，提高中医实体关系提取的完整性
+  entity_types: [脉象,脉位,病症,治疗方法,医家,著作,临床案例,脉诊系统]  # 飞龙脉诊核心实体类型，按重要性排序
+  max_gleanings: 1              # 保持1次迭代，确保提取质量
 
 summarize_descriptions:
   model_id: default_chat_model
@@ -98,10 +98,10 @@ cluster_graph:
   max_cluster_size: 10          # 适当增加聚类大小以适应中医知识的复杂性
 
 extract_claims:
-  enabled: true                  # 开启声明提取，对中医功效验证很有价值
+  enabled: true                  # 开启声明提取，对飞龙脉诊验证很有价值
   model_id: default_chat_model
   prompt: "prompts/extract_claims.txt"
-  description: "与药材功效、方剂应用、疾病治疗相关的声明，包括现代研究验证和传统文献记载。"
+  description: "与脉象诊断、脉位对应、病症判断、治疗方法相关的声明，包括临床验证和传统文献记载。"
   max_gleanings: 1
 
 community_reports:
