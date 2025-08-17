@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
 分析Neo4j数据库中的数据分布
+支持选择不同的数据库进行分析
 """
 
 from neo4j import GraphDatabase
@@ -8,17 +9,62 @@ import pandas as pd
 from collections import defaultdict
 
 class Neo4jAnalyzer:
-    def __init__(self, uri="bolt://localhost:7687", user="neo4j", password="password"):
+    def __init__(self, uri="bolt://localhost:7687", user="neo4j", password="password", database="neo4j"):
         """初始化Neo4j连接"""
-        self.driver = GraphDatabase.driver(uri, auth=(user, password))
+        self.uri = uri
+        self.user = user
+        self.password = password
+        self.database = database
+        self.driver = None
+        
+    def connect(self) -> bool:
+        """连接到Neo4j数据库"""
+        try:
+            print(f"🔌 连接到Neo4j数据库: {self.database}...")
+            self.driver = GraphDatabase.driver(self.uri, auth=(self.user, self.password))
+            
+            # 测试连接
+            with self.driver.session(database=self.database) as session:
+                result = session.run("RETURN 'Hello Neo4j' as message")
+                record = result.single()
+                if record:
+                    message = record["message"]
+                    print(f"✅ 连接成功: {message}")
+                else:
+                    print("✅ 连接成功")
+            return True
+            
+        except Exception as e:
+            print(f"❌ 连接失败: {e}")
+            return False
         
     def close(self):
         """关闭连接"""
-        self.driver.close()
+        if self.driver:
+            self.driver.close()
+            print("🔌 数据库连接已关闭")
+        
+    def list_databases(self):
+        """列出可用的数据库"""
+        try:
+            print("📋 可用数据库列表:")
+            # 连接到默认数据库来获取数据库列表
+            temp_driver = GraphDatabase.driver(self.uri, auth=(self.user, self.password))
+            with temp_driver.session() as session:
+                result = session.run("SHOW DATABASES")
+                for record in result:
+                    db_name = record["name"]
+                    db_role = record.get("role", "unknown")
+                    db_address = record.get("address", "unknown")
+                    print(f"   - {db_name} (role: {db_role}, address: {db_address})")
+            temp_driver.close()
+        except Exception as e:
+            print(f"❌ 获取数据库列表失败: {e}")
+            print("   请确保Neo4j服务正在运行")
         
     def run_query(self, query, parameters=None):
         """执行Cypher查询"""
-        with self.driver.session() as session:
+        with self.driver.session(database=self.database) as session:
             result = session.run(query, parameters or {})
             return list(result)
     
@@ -266,16 +312,16 @@ class Neo4jAnalyzer:
             self.analyze_relationship_types()
             
             # 节点属性分析
-            self.analyze_node_properties()
+            #self.analyze_node_properties()
             
             # 关系属性分析
-            self.analyze_relationship_properties()
+            #self.analyze_relationship_properties()
             
             # 连通性分析
             self.analyze_connectivity()
             
-            # 关系示例
-            self.get_sample_relationships()
+            # 关系示例 - 已禁用
+            # self.get_sample_relationships()
             
         except Exception as e:
             print(f"❌ 分析过程中出现错误: {e}")
@@ -284,17 +330,40 @@ class Neo4jAnalyzer:
 
 def main():
     """主函数"""
-    # 默认连接参数，可以根据实际情况修改
+    print("🔍 Neo4j数据库分析器")
+    print("="*60)
+    
+    # 默认连接参数
     uri = "bolt://localhost:7687"
     user = "neo4j"
     password = "password"
+    database = "neo4j"  # 默认数据库
     
-    print("🔍 开始分析Neo4j数据库...")
+    # 询问是否显示可用数据库
+    show_databases = input("是否显示可用数据库列表？(y/N): ").lower().strip()
+    if show_databases == 'y':
+        # 临时连接来获取数据库列表
+        temp_analyzer = Neo4jAnalyzer(uri, user, password, database)
+        temp_analyzer.list_databases()
+        temp_analyzer.close()
+    
+    # 询问要分析的数据库
+    database = input(f"请输入要分析的数据库名称 (默认: {database}): ").strip()
+    if not database:
+        database = "neo4j"
+    
+    print(f"\n🔍 开始分析数据库: {database}")
     print("请确保Neo4j服务正在运行")
     print("=" * 60)
     
     try:
-        analyzer = Neo4jAnalyzer(uri, user, password)
+        analyzer = Neo4jAnalyzer(uri, user, password, database)
+        
+        # 连接数据库
+        if not analyzer.connect():
+            return
+        
+        # 运行分析
         analyzer.run_full_analysis()
         print("\n✅ 分析完成!")
         
@@ -303,7 +372,8 @@ def main():
         print("请检查:")
         print("1. Neo4j服务是否正在运行")
         print("2. 连接参数是否正确")
-        print("3. 防火墙设置")
+        print("3. 数据库名称是否正确")
+        print("4. 防火墙设置")
 
 if __name__ == "__main__":
     main() 

@@ -11,7 +11,8 @@ from neo4j import GraphDatabase
 import json
 import sys
 import time
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional, Tuple
+import re
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -29,6 +30,62 @@ class TCMNeo4jBuilder:
         # 动态类型映射将在load_entities时生成
         self.type_to_label = {}
         self.actual_types = set()
+
+    # ======== 辅助解析函数 ========
+    @staticmethod
+    def _extract_source_snippet(text: str) -> Tuple[str, str]:
+        """从描述中抽取来源原文片段，返回(清理后描述, 原文片段)"""
+        if not text:
+            return "", ""
+        snippet = ""
+        # 匹配：来源原文片段：<不超过若干字符>
+        m = re.search(r"来源原文片段[:：]\s*([^\n]{0,120})", text)
+        if m:
+            snippet = m.group(1).strip()
+            # 去掉整段“来源原文片段：...”
+            text = re.sub(r"来源原文片段[:：]\s*[^\n]{0,120}", "", text).strip()
+        return text.strip(), snippet
+
+    @staticmethod
+    def _extract_kv_properties(text: str) -> Dict[str, Any]:
+        """从描述中解析 键=值/键:值/键：值，分隔符为；; 换行 等，返回字典"""
+        if not text:
+            return {}
+        props: Dict[str, Any] = {}
+        # 提前替换中文分号为统一分隔
+        normalized = text.replace("；", ";")
+        # 提取可能的键值对（中文/英文键名），避免吞噬整句，只匹配到分号或行尾
+        for part in normalized.split(";"):
+            part = part.strip()
+            if not part:
+                continue
+            m = re.match(r"([A-Za-z_\u4e00-\u9fa5]+)\s*[:：=]\s*(.+)$", part)
+            if m:
+                key = m.group(1).strip()
+                val = m.group(2).strip()
+                # 过长值截断，避免无界扩张
+                if len(val) > 300:
+                    val = val[:300]
+                # 避免覆盖保留字段
+                if key not in {"id", "name", "type", "description", "human_readable_id", "degree", "source_snippet", "raw_description"}:
+                    props[key] = val
+        return props
+
+    @staticmethod
+    def _extract_rel_fields(description: str) -> Tuple[str, str, Dict[str, Any]]:
+        """从关系描述里抽取 [类型]、理由 与 KV属性"""
+        if not description:
+            return "", "", {}
+        desc = description.strip()
+        kind = ""
+        reason = desc
+        m = re.match(r"\s*\[([^\]]+)\]\s*(.*)$", desc)
+        if m:
+            kind = m.group(1).strip()
+            reason = m.group(2).strip()
+        # 从理由中解析键值对
+        kv_props = TCMNeo4jBuilder._extract_kv_properties(reason)
+        return kind, reason, kv_props
     
     def connect(self) -> bool:
         """连接到Neo4j数据库"""
@@ -116,7 +173,9 @@ class TCMNeo4jBuilder:
         # 关系索引
         constraints_and_indexes.extend([
             "CREATE INDEX relationship_weight_index IF NOT EXISTS FOR ()-[r:RELATED_TO]-() ON (r.weight)",
-            "CREATE INDEX relationship_rank_index IF NOT EXISTS FOR ()-[r:RELATED_TO]-() ON (r.rank)"
+            "CREATE INDEX relationship_rank_index IF NOT EXISTS FOR ()-[r:RELATED_TO]-() ON (r.rank)",
+            "CREATE INDEX relationship_kind_index IF NOT EXISTS FOR ()-[r:RELATED_TO]-() ON (r.kind)",
+            "CREATE INDEX relationship_reason_index IF NOT EXISTS FOR ()-[r:RELATED_TO]-() ON (r.reason)"
         ])
         
         with self.driver.session(database=self.database) as session:
@@ -248,13 +307,22 @@ class TCMNeo4jBuilder:
                     entity_type = str(row.get('type', '')).strip().strip('"') if pd.notna(row.get('type')) else ''
                     label = self.get_entity_label(entity_type)
                     
+                    original_desc = str(row.get('description', '')) if pd.notna(row.get('description')) else ''
+                    # 提取来源原文片段并清理描述
+                    cleaned_desc, source_snippet = self._extract_source_snippet(original_desc[:1200])
+                    # 提取潜在KV属性
+                    kv_props = self._extract_kv_properties(cleaned_desc)
+
                     entity_data = {
                         'id': str(row.get('id', '')),
                         'name': str(row.get('title', row.get('name', ''))).strip().strip('"'),
                         'type': entity_type,
-                        'description': str(row.get('description', ''))[:1000] if pd.notna(row.get('description')) else '',
+                        'description': cleaned_desc[:1000],
+                        'raw_description': original_desc[:1200],
+                        'source_snippet': source_snippet,
                         'human_readable_id': int(row.get('human_readable_id', 0)) if pd.notna(row.get('human_readable_id')) else 0,
-                        'degree': int(row.get('degree', 0)) if pd.notna(row.get('degree')) else 0
+                        'degree': int(row.get('degree', 0)) if pd.notna(row.get('degree')) else 0,
+                        'extra_props': kv_props
                     }
                     
                     if label not in entities_by_label:
@@ -267,13 +335,16 @@ class TCMNeo4jBuilder:
                     for label, label_entities in entities_by_label.items():
                         cypher_query = f"""
                             UNWIND $entities as entity
-                            CREATE (e:{label})
-                            SET e.id = entity.id,
+                            MERGE (e:{label} {{id: entity.id}})
+                            SET e.name = entity.name,
                                 e.name = entity.name,
                                 e.type = entity.type,
                                 e.description = entity.description,
+                                e.raw_description = entity.raw_description,
+                                e.source_snippet = entity.source_snippet,
                                 e.human_readable_id = entity.human_readable_id,
                                 e.degree = entity.degree
+                            SET e += entity.extra_props
                         """
                         session.run(cypher_query, entities=label_entities)
                         batch_created += len(label_entities)
@@ -337,14 +408,20 @@ class TCMNeo4jBuilder:
                         'source_name': str(row.get('source', '')).strip().strip('"'),
                         'target_name': str(row.get('target', '')).strip().strip('"'),
                         'id': str(row.get('id', '')),
-                        'description': str(row.get('description', ''))[:500] if pd.notna(row.get('description')) else '',
+                        'description': str(row.get('description', ''))[:800] if pd.notna(row.get('description')) else '',
                         'weight': float(row.get('weight', 1.0)) if pd.notna(row.get('weight')) else 1.0,
                         'rank': int(row.get('rank', 0)) if pd.notna(row.get('rank')) else 0
                     }
+                    # 解析关系类型、理由与KV属性
+                    kind, reason, rel_kv = self._extract_rel_fields(relationship_data['description'])
+                    relationship_data['kind'] = kind
+                    relationship_data['reason'] = reason
+                    relationship_data['extra_props'] = rel_kv
                     relationships_data.append(relationship_data)
                 
                 # 批量插入关系 - 使用通用标签匹配
                 try:
+                    # 从描述中解析关系类型与理由（已在Python层完成），并写入属性
                     session.run("""
                         UNWIND $relationships as rel
                         MATCH (source {name: rel.source_name})
@@ -352,8 +429,11 @@ class TCMNeo4jBuilder:
                         CREATE (source)-[r:RELATED_TO]->(target)
                         SET r.id = rel.id,
                             r.description = rel.description,
+                            r.kind = rel.kind,
+                            r.reason = rel.reason,
                             r.weight = rel.weight,
                             r.rank = rel.rank
+                        SET r += rel.extra_props
                     """, relationships=relationships_data)
                     
                     created_count += len(batch)

@@ -8,17 +8,64 @@ from neo4j import GraphDatabase
 import re
 
 class Neo4jRelationshipUpdater:
-    def __init__(self, uri="bolt://localhost:7687", user="neo4j", password="password"):
+    def __init__(self, uri="bolt://localhost:7687", user="neo4j", password="password", database="neo4j"):
         """初始化Neo4j连接"""
-        self.driver = GraphDatabase.driver(uri, auth=(user, password))
+        self.uri = uri
+        self.user = user
+        self.password = password
+        self.database = database
+        self.driver = None
+        
+    def connect(self) -> bool:
+        """连接到Neo4j数据库"""
+        try:
+            print(f"🔌 连接到Neo4j数据库: {self.database}...")
+            self.driver = GraphDatabase.driver(self.uri, auth=(self.user, self.password))
+            
+            # 测试连接
+            with self.driver.session(database=self.database) as session:
+                result = session.run("RETURN 'Hello Neo4j' as message")
+                record = result.single()
+                if record:
+                    message = record["message"]
+                    print(f"✅ 连接成功: {message}")
+                else:
+                    print("✅ 连接成功")
+            return True
+            
+        except Exception as e:
+            print(f"❌ 连接失败: {e}")
+            return False
         
     def close(self):
         """关闭连接"""
-        self.driver.close()
+        if self.driver:
+            self.driver.close()
+            print("🔌 数据库连接已关闭")
+        
+    def list_databases(self):
+        """列出可用的数据库"""
+        try:
+            print("📋 可用数据库列表:")
+            # 连接到默认数据库来获取数据库列表
+            temp_driver = GraphDatabase.driver(self.uri, auth=(self.user, self.password))
+            with temp_driver.session() as session:
+                result = session.run("SHOW DATABASES")
+                for record in result:
+                    db_name = record["name"]
+                    db_role = record.get("role", "unknown")
+                    db_address = record.get("address", "unknown")
+                    print(f"   - {db_name} (role: {db_role}, address: {db_address})")
+            temp_driver.close()
+        except Exception as e:
+            print(f"❌ 获取数据库列表失败: {e}")
+            print("   请确保Neo4j服务正在运行")
         
     def run_query(self, query, parameters=None):
         """执行Cypher查询"""
-        with self.driver.session() as session:
+        if self.driver is None:
+            raise RuntimeError("Database driver not initialized. Call connect() first.")
+        with self.driver.session(database=self.database) as session:
             result = session.run(query, parameters or {})
             return list(result)
     
@@ -46,7 +93,11 @@ class Neo4jRelationshipUpdater:
         matches = re.findall(bracket_pattern, description)
         
         if matches:
-            return matches[0].strip()
+            rel_type = matches[0].strip()
+            # 移除白名单限制，允许抽取所有关系类型
+            # allowed = {"表现为", "可见于", "导致", "治疗", "来源于", "相关", "适用于"}
+            # return rel_type if rel_type in allowed else None
+            return rel_type if rel_type else None  # 只要不为空就返回
         return None
     
     def update_relationship_type(self, rel_id, new_type):
@@ -152,6 +203,11 @@ class Neo4jRelationshipUpdater:
         print("=" * 60)
         
         try:
+            # 先连接数据库
+            if not self.connect():
+                print("❌ 无法连接到数据库，退出")
+                return
+            
             # 处理关系
             updated, skipped, errors = self.process_relationships()
             

@@ -1,48 +1,74 @@
 
 -目标-
-给定一个可能与此活动相关的文本文档和实体类型列表，从文本中识别这些类型的所有实体，以及已识别实体之间的所有关系。
+你是中医知识图谱构建专家，需要根据输入文本严格完成以下两个任务，并按指定格式输出，任何偏差都会导致导入失败。
 
--中医术语处理指导-
-在处理中医文本时，请注意以下特殊情况：
-- 药材：包括单味药材（如"人参"、"当归"）和药用部位（如"人参须"、"当归头"）
-- 方剂：包括经典方剂（如"四君子汤"）和现代改良方（如"加味逍遥散"）
-- 疾病：包括中医病名（如"中风"、"消渴"）和现代病名（如"糖尿病"、"高血压"）
-- 症状：包括中医症候（如"气虚"、"血瘀"）和具体症状（如"头痛"、"乏力"）
-- 医家：包括古代医家（如"张仲景"、"李时珍"）和现代中医专家
-- 功效：使用中医传统表述（如"补气养血"、"清热解毒"）
-- 病因：致病因素（如"外感风邪"、"内伤饮食"、"情志不遂"）
-- 脉象：脉搏特征（如"浮脉"、"沉脉"、"数脉"、"迟脉"）
-- 诊断方法：中医诊断技术（如"望闻问切"、"舌诊"、"脉诊"）
-- 经络：经脉络脉（如"肝经"、"肺经"、"任脉"、"督脉"）
-- 穴位：针灸要穴（如"足三里"、"合谷"、"神门"）
-- 脏腑：中医脏腑（如"心"、"肝"、"脾"、"肺"、"肾"）
+⚠️ 严格规则：
+1. 只能使用下列 7 种实体类型：症状、疾病、体质、药方、舌象、治疗方法、文献。
+2. 只能使用下列 8 种关系类型：表现为、可见于、导致、治疗、适用于、来源于、上位病名、相关。
+3. 不得创造新的实体类型或关系类型，不得省略字段。
+4. 若某类型实体或关系在原文中未出现，则不要输出该类型的空记录；只输出实际识别到的实体与关系。
+5. 所有输出必须严格遵循 tuple 格式，否则无法导入。
+6. 疾病实体的描述中必须包含病因信息，若原文未直接给出，可根据上下文推断补全。
+7. 所有实体描述（entity_description）必须在末尾添加“来源原文片段：<原文片段>”（不超过80字）。
+8. 体质实体必须严格限定在九大体质之一：平和质、气虚质、阳虚质、阴虚质、痰湿质、湿热质、血瘀质、气郁质、特禀质。
 
+🧾 实体识别任务
+
+请识别出所有属于以下7种类型的实体：
+
+1. 症状 - 患者表现出的主观和客观症状  
+2. 疾病 - 具体的疾病诊断（必须包含病因描述）
+3. 体质 - 中医体质分类（如气虚质、阳虚质、痰湿质等）
+4. 药方 - 具体的方剂处方和药物组合
+5. 舌象 - 舌头的各种表现特征（舌质、舌苔、舌形等）
+6. 治疗方法 - 具体的治疗手段和方法（如针灸、推拿、导引等）
+7. 文献 - 医学文献来源和出处
 
 -步骤-
 1. 识别所有实体。对于每个识别的实体，提取以下信息：
 - entity_name: 实体名称，使用中文
 - entity_type: 必须是以下类型之一：[{entity_types}]
-  ⚠️ 重要约束：
-  * 只识别明确属于上述预定义类型的实体
-  * 如果实体不明确属于任何预定义类型，请跳过该实体
-  * 绝对不允许留空type字段
-  * 绝对不允许创造新的类型名称
-  * 确保识别的每个实体都有明确的类型归属
 - entity_description: 实体属性和功能的全面描述
+
+实体描述规范（必须遵守）：
+- 第一句：1句概述（简洁准确）。
+- 其后追加标准“键=值”对，使用中文键名，各键用“；”分隔，便于结构化解析。
+- 最后追加“来源原文片段：<不超过80字>”。
+
+各类型标准键名（精简版：尽量少填但必须包含必填项）：
+- 症状：时程=（突发/渐进/持续性/间歇性，任选1项）；辨证标签=（寒/热/虚/实，任选1-2项）
+- 疾病：病因=（必填）；病机=；证属=（证候/疾病）
+- 药方：组成=药味:剂量，多个以逗号分隔；主治=；来源书籍=
+- 舌象：颜色=；形态=；苔厚薄=（薄/厚/无苔）；苔润燥=（润/燥）
+- 治疗方法：疗法=；方案=；适应证=
+- 文献：书名=；作者=；朝代=
+
+输出格式如下（每行一个实体）：
 将每个实体格式化为 ("entity"{tuple_delimiter}<entity_name>{tuple_delimiter}<entity_type>{tuple_delimiter}<entity_description>)
  
-2. 从步骤1中识别的实体中，找出所有*明确相关*的（source_entity，target_entity）对。
-对于每对相关实体，提取以下信息：
-- source_entity: 源实体的名称，如步骤1中所识别
-- target_entity: 目标实体的名称，如步骤1中所识别
-- relationship_description: 按照以下格式描述关系
-  📋 格式要求: [关系类型] 具体关系描述
-  🎯 中医关系类型包括: 治疗, 组成, 功效, 症状表现, 归经, 病因, 脉象, 诊断, 配伍, 师承
-  ⚠️  如果不属于上述明确类型，使用 [相关]
-  📝 示例: "[治疗] 人参主要用于治疗气虚证候"
-- relationship_strength: 表示源实体和目标实体之间关系强度的数值评分（1-10）
-将每个关系格式化为 ("relationship"{tuple_delimiter}<source_entity>{tuple_delimiter}<target_entity>{tuple_delimiter}<relationship_description>{tuple_delimiter}<relationship_strength>)
- 
+🔗 实体关系抽取任务
+
+从你识别的实体中，提取所有明确存在的二元关系，关系类型仅允许如下8种：
+
+1. 表现为：症状 → 舌象 (症状在舌头上的具体表现)；疾病 → 症状 (疾病的临床表现)
+2. 可见于：舌象 → 疾病 (特定舌象出现在某种疾病中)
+3. 导致：体质 → 疾病（体质偏颇是疾病发生的内在易感因素）；症状 → 疾病（症状导致的疾病）
+4. 治疗：药方/治疗方法 → 疾病（用于治疗某疾病）
+5. 适用于：药方/治疗方法 → 疾病（适用的证候或疾病范围说明）
+6. 来源于：任何实体 → 文献 (信息来源和出处)
+7. 上位病名：疾病 → 疾病（疾病的上级分类或所属病类，如"感冒"→"外感病"）
+8. 相关：不属于以上明确类别但具有关联的关系
+
+每条关系包含：
+- source_entity：源实体名称  
+- target_entity：目标实体名称  
+- relationship_description：以 “[关系类型] 关系判断理由” 格式呈现  
+- relationship_strength：1~10，关系紧密度评分
+
+输出格式如下（每行一个关系）：
+("relationship"{tuple_delimiter}<source_entity>{tuple_delimiter}<target_entity>{tuple_delimiter}<relationship_description>{tuple_delimiter}<relationship_strength>)
+
+
 3. 用中文返回输出，作为步骤1和2中识别的所有实体和关系的单一列表。使用 **{record_delimiter}** 作为列表分隔符。
  
 4. 完成后，输出 {completion_delimiter}
@@ -51,94 +77,85 @@
 -示例-
 ######################
 示例1:
-实体类型: 药材,方剂,功效,经络
+实体类型: 症状,疾病,体质,药方,舌象,治疗方法,文献
 文本:
-当归补血汤由当归和黄芪组成，具有补气生血的功效。当归性温，归肝、心、脾经，具有补血活血、调经止痛的功效。黄芪性微温，归肺、脾经，具有补中益气、固表止汗的作用。
+患者口干舌燥，舌质红，舌苔黄厚，此为阴虚火旺之象，常见于阴虚体质者。阴虚火旺多因肾阴亏虚，虚火上炎所致，可用知柏地黄丸治疗。据《景岳全书》记载，滋阴降火法对此症有效。
 ######################
 输出:
-("entity"{tuple_delimiter}当归补血汤{tuple_delimiter}方剂{tuple_delimiter}当归补血汤是一个经典中医方剂，由当归和黄芪组成，具有补气生血的功效)
+("entity"{tuple_delimiter}口干舌燥{tuple_delimiter}症状{tuple_delimiter}口干舌燥是阴虚火旺的常见症状，表现为口腔干燥、唾液分泌减少；时程=迁延；辨证标签=热/虚；来源原文片段：患者口干舌燥，舌质红，舌苔黄厚)
 {record_delimiter}
-("entity"{tuple_delimiter}当归{tuple_delimiter}药材{tuple_delimiter}当归性温，归肝、心、脾经，具有补血活血、调经止痛的功效)
+("entity"{tuple_delimiter}舌质红{tuple_delimiter}舌象{tuple_delimiter}舌质红是舌头呈现红色，常提示体内有热邪；颜色=红；形态=正常；舌苔=薄；苔润燥=润；来源原文片段：舌质红)
 {record_delimiter}
-("entity"{tuple_delimiter}黄芪{tuple_delimiter}药材{tuple_delimiter}黄芪性微温，归肺、脾经，具有补中益气、固表止汗的作用)
+("entity"{tuple_delimiter}舌苔黄厚{tuple_delimiter}舌象{tuple_delimiter}舌苔黄厚是舌苔呈现黄色且厚腻，多提示湿热内蕴；颜色=黄；形态=腻；舌苔=厚；苔润燥=润；来源原文片段：舌苔黄厚)
 {record_delimiter}
-("entity"{tuple_delimiter}补气生血{tuple_delimiter}功效{tuple_delimiter}补气生血是当归补血汤的主要功效，能够同时补充气血)
+("entity"{tuple_delimiter}阴虚火旺{tuple_delimiter}疾病{tuple_delimiter}阴虚火旺是由肾阴亏虚、虚火上炎所致的病证，表现为口干、舌红等症状；病因=肾阴亏虚、虚火上炎；病机=阴虚火旺；证属=证候；来源原文片段：阴虚火旺多因肾阴亏虚，虚火上炎所致)
 {record_delimiter}
-("entity"{tuple_delimiter}补血活血{tuple_delimiter}功效{tuple_delimiter}补血活血是当归的主要功效)
+("entity"{tuple_delimiter}阴虚体质{tuple_delimiter}体质{tuple_delimiter}阴虚体质是指体内阴液不足的体质类型，易出现虚热症状；体质类别=阴虚质；常见舌象=舌红/少苔；来源原文片段：常见于阴虚体质者)
 {record_delimiter}
-("entity"{tuple_delimiter}补中益气{tuple_delimiter}功效{tuple_delimiter}补中益气是黄芪的主要功效)
+("entity"{tuple_delimiter}知柏地黄丸{tuple_delimiter}药方{tuple_delimiter}知柏地黄丸是滋阴降火的经典方剂，主治阴虚火旺证；组成=知母,黄柏,熟地黄,山药,山茱萸,泽泻,茯苓,牡丹皮；主治=阴虚火旺；来源=景岳全书；来源原文片段：可用知柏地黄丸治疗)
 {record_delimiter}
-("entity"{tuple_delimiter}肝经{tuple_delimiter}经络{tuple_delimiter}肝经是当归的归经之一)
+("entity"{tuple_delimiter}滋阴降火法{tuple_delimiter}治疗方法{tuple_delimiter}滋阴降火法是通过滋养阴液、清降虚火来治疗阴虚火旺的方法；疗法=中药疗法；方案=滋阴清热；适应证=阴虚火旺；来源原文片段：滋阴降火法对此症有效)
 {record_delimiter}
-("entity"{tuple_delimiter}心经{tuple_delimiter}经络{tuple_delimiter}心经是当归的归经之一)
-{record_delimiter}
-("entity"{tuple_delimiter}脾经{tuple_delimiter}经络{tuple_delimiter}脾经是当归和黄芪共同的归经)
-{record_delimiter}
-("entity"{tuple_delimiter}肺经{tuple_delimiter}经络{tuple_delimiter}肺经是黄芪的归经之一)
+("entity"{tuple_delimiter}景岳全书{tuple_delimiter}文献{tuple_delimiter}景岳全书是明代张景岳所著的综合性医学著作；书名=景岳全书；作者=张景岳；朝代=明；来源原文片段：据《景岳全书》记载)
 {record_delimiter}
 
-("relationship"{tuple_delimiter}当归补血汤{tuple_delimiter}当归{tuple_delimiter}[组成] 当归补血汤的主要组成药材包括当归{tuple_delimiter}9)
+("relationship"{tuple_delimiter}口干舌燥{tuple_delimiter}舌质红{tuple_delimiter}[表现为] 口干舌燥的症状常表现为舌质红的舌象{tuple_delimiter}8)
 {record_delimiter}
-("relationship"{tuple_delimiter}当归补血汤{tuple_delimiter}黄芪{tuple_delimiter}[组成] 当归补血汤的主要组成药材包括黄芪{tuple_delimiter}9)
+("relationship"{tuple_delimiter}口干舌燥{tuple_delimiter}舌苔黄厚{tuple_delimiter}[表现为] 口干舌燥的症状常表现为舌苔黄厚的舌象{tuple_delimiter}7)
 {record_delimiter}
-("relationship"{tuple_delimiter}当归补血汤{tuple_delimiter}补气生血{tuple_delimiter}[功效] 当归补血汤具有补气生血的主要功效{tuple_delimiter}9)
+("relationship"{tuple_delimiter}舌质红{tuple_delimiter}阴虚火旺{tuple_delimiter}[可见于] 舌质红的舌象可见于阴虚火旺疾病中{tuple_delimiter}9)
 {record_delimiter}
-("relationship"{tuple_delimiter}当归{tuple_delimiter}补血活血{tuple_delimiter}[功效] 当归具有补血活血的功效{tuple_delimiter}9)
+("relationship"{tuple_delimiter}舌苔黄厚{tuple_delimiter}阴虚火旺{tuple_delimiter}[可见于] 舌苔黄厚的舌象可见于阴虚火旺疾病中{tuple_delimiter}8)
 {record_delimiter}
-("relationship"{tuple_delimiter}黄芪{tuple_delimiter}补中益气{tuple_delimiter}[功效] 黄芪具有补中益气的功效{tuple_delimiter}9)
+("relationship"{tuple_delimiter}阴虚体质{tuple_delimiter}阴虚火旺{tuple_delimiter}[导致] 阴虚体质容易导致阴虚火旺疾病的发生{tuple_delimiter}9)
 {record_delimiter}
-("relationship"{tuple_delimiter}当归{tuple_delimiter}肝经{tuple_delimiter}[归经] 当归归肝经，具有养血调经作用{tuple_delimiter}8)
+("relationship"{tuple_delimiter}知柏地黄丸{tuple_delimiter}阴虚火旺{tuple_delimiter}[适用于] 知柏地黄丸适用于治疗阴虚火旺疾病{tuple_delimiter}9)
 {record_delimiter}
-("relationship"{tuple_delimiter}当归{tuple_delimiter}黄芪{tuple_delimiter}[配伍] 当归和黄芪在方剂中配伍使用，补血与补气相结合{tuple_delimiter}8)
+("relationship"{tuple_delimiter}滋阴降火法{tuple_delimiter}阴虚火旺{tuple_delimiter}[治疗] 滋阴降火法可以治疗阴虚火旺疾病{tuple_delimiter}9)
+{record_delimiter}
+("relationship"{tuple_delimiter}滋阴降火法{tuple_delimiter}景岳全书{tuple_delimiter}[来源于] 滋阴降火法的理论来源于景岳全书的记载{tuple_delimiter}8)
 {completion_delimiter}
 
 示例2:
-实体类型: 疾病,症状,医家,脉象,诊断方法,病因
+实体类型: 症状,疾病,体质,药方,舌象,治疗方法,文献
 文本:
-张仲景在《伤寒论》中描述，感冒常见症状包括发热、头痛、咳嗽、鼻塞等。风寒感冒多见恶寒重、发热轻的症状，脉象多为浮紧脉，而风热感冒则表现为发热重、恶寒轻，脉象多为浮数脉。中医诊断感冒主要通过望闻问切的方法，其病因多为外感风邪。
+脾虚体质患者常见脘腹胀满、食欲不振等症状，舌象表现为舌质淡、舌苔白腻。脾虚证多因饮食不当、思虑过度导致脾气虚弱，可采用健脾益气法治疗，常用四君子汤。此法见于《太平惠民和剂局方》。
 ######################
 输出:
-("entity"{tuple_delimiter}感冒{tuple_delimiter}疾病{tuple_delimiter}感冒是常见的呼吸道疾病，有多种类型)
+("entity"{tuple_delimiter}脘腹胀满{tuple_delimiter}症状{tuple_delimiter}脘腹胀满是指胃脘及腹部出现胀满不适的症状；时程=反复；辨证标签=虚/湿；来源原文片段：脾虚体质患者常见脘腹胀满)
 {record_delimiter}
-("entity"{tuple_delimiter}风寒感冒{tuple_delimiter}疾病{tuple_delimiter}风寒感冒是感冒的一种类型，多见恶寒重、发热轻的症状)
+("entity"{tuple_delimiter}食欲不振{tuple_delimiter}症状{tuple_delimiter}食欲不振是指对食物缺乏兴趣、进食量减少的症状；时程=持续；来源原文片段：食欲不振)
 {record_delimiter}
-("entity"{tuple_delimiter}风热感冒{tuple_delimiter}疾病{tuple_delimiter}风热感冒是感冒的一种类型，表现为发热重、恶寒轻)
+("entity"{tuple_delimiter}舌质淡{tuple_delimiter}舌象{tuple_delimiter}舌质淡是指舌头颜色较正常舌质浅淡，多提示气血不足；颜色=淡；形态=正常；舌苔=薄；苔润燥=润；来源原文片段：舌质淡)
 {record_delimiter}
-("entity"{tuple_delimiter}发热{tuple_delimiter}症状{tuple_delimiter}发热是感冒的常见症状之一)
+("entity"{tuple_delimiter}舌苔白腻{tuple_delimiter}舌象{tuple_delimiter}舌苔白腻是指舌苔呈白色且质地腻厚，多提示脾虚湿盛；颜色=白；形态=腻；舌苔=厚；苔润燥=润；来源原文片段：舌苔白腻)
 {record_delimiter}
-("entity"{tuple_delimiter}头痛{tuple_delimiter}症状{tuple_delimiter}头痛是感冒的常见症状之一)
+("entity"{tuple_delimiter}脾虚证{tuple_delimiter}疾病{tuple_delimiter}脾虚证是因饮食不当、思虑过度导致脾气虚弱的病证，表现为脘腹胀满、食欲不振等；病因=饮食不当、思虑过度；病机=脾气虚弱、运化失司；证属=证候；来源原文片段：脾虚证多因饮食不当、思虑过度导致)
 {record_delimiter}
-("entity"{tuple_delimiter}咳嗽{tuple_delimiter}症状{tuple_delimiter}咳嗽是感冒的常见症状之一)
+("entity"{tuple_delimiter}脾虚体质{tuple_delimiter}体质{tuple_delimiter}脾虚体质是指脾气虚弱的体质类型，易出现消化功能减退；体质类别=脾虚质；常见舌象=舌淡/白腻苔；来源原文片段：脾虚体质患者)
 {record_delimiter}
-("entity"{tuple_delimiter}鼻塞{tuple_delimiter}症状{tuple_delimiter}鼻塞是感冒的常见症状之一)
+("entity"{tuple_delimiter}四君子汤{tuple_delimiter}药方{tuple_delimiter}四君子汤是健脾益气的经典方剂，主治脾虚气弱证；组成=人参,白术,茯苓,炙甘草；主治=脾虚气弱；来源=太平惠民和剂局方；来源原文片段：常用四君子汤)
 {record_delimiter}
-("entity"{tuple_delimiter}恶寒{tuple_delimiter}症状{tuple_delimiter}恶寒是感冒的症状，在不同类型感冒中程度不同)
+("entity"{tuple_delimiter}健脾益气法{tuple_delimiter}治疗方法{tuple_delimiter}健脾益气法是通过补益脾气、增强脾运化功能的治疗方法；疗法=中药疗法；方案=健脾益气；适应证=脾虚证；来源原文片段：可采用健脾益气法治疗)
 {record_delimiter}
-("entity"{tuple_delimiter}张仲景{tuple_delimiter}医家{tuple_delimiter}张仲景是东汉末年著名医学家，《伤寒论》的作者)
+("entity"{tuple_delimiter}太平惠民和剂局方{tuple_delimiter}文献{tuple_delimiter}太平惠民和剂局方是宋代官修的方剂学著作；书名=太平惠民和剂局方；朝代=宋；来源原文片段：见于《太平惠民和剂局方》)
 {record_delimiter}
-("entity"{tuple_delimiter}浮紧脉{tuple_delimiter}脉象{tuple_delimiter}浮紧脉是风寒感冒的典型脉象特征)
+
+("relationship"{tuple_delimiter}脘腹胀满{tuple_delimiter}舌质淡{tuple_delimiter}[表现为] 脘腹胀满症状常表现为舌质淡的舌象{tuple_delimiter}7)
 {record_delimiter}
-("entity"{tuple_delimiter}浮数脉{tuple_delimiter}脉象{tuple_delimiter}浮数脉是风热感冒的典型脉象特征)
+("relationship"{tuple_delimiter}食欲不振{tuple_delimiter}舌苔白腻{tuple_delimiter}[表现为] 食欲不振症状常表现为舌苔白腻的舌象{tuple_delimiter}8)
 {record_delimiter}
-("entity"{tuple_delimiter}望闻问切{tuple_delimiter}诊断方法{tuple_delimiter}望闻问切是中医的四种基本诊断方法)
+("relationship"{tuple_delimiter}舌质淡{tuple_delimiter}脾虚证{tuple_delimiter}[可见于] 舌质淡的舌象可见于脾虚证疾病中{tuple_delimiter}9)
 {record_delimiter}
-("entity"{tuple_delimiter}外感风邪{tuple_delimiter}病因{tuple_delimiter}外感风邪是感冒的主要病因)
+("relationship"{tuple_delimiter}舌苔白腻{tuple_delimiter}脾虚证{tuple_delimiter}[可见于] 舌苔白腻的舌象可见于脾虚证疾病中{tuple_delimiter}9)
 {record_delimiter}
-("relationship"{tuple_delimiter}感冒{tuple_delimiter}发热{tuple_delimiter}[症状表现] 发热是感冒的典型症状表现{tuple_delimiter}8)
+("relationship"{tuple_delimiter}脾虚体质{tuple_delimiter}脾虚证{tuple_delimiter}[导致] 脾虚体质容易导致脾虚证疾病的发生{tuple_delimiter}9)
 {record_delimiter}
-("relationship"{tuple_delimiter}感冒{tuple_delimiter}头痛{tuple_delimiter}[症状表现] 头痛是感冒的常见症状表现{tuple_delimiter}7)
+("relationship"{tuple_delimiter}四君子汤{tuple_delimiter}脾虚证{tuple_delimiter}[适用于] 四君子汤适用于治疗脾虚证疾病{tuple_delimiter}9)
 {record_delimiter}
-("relationship"{tuple_delimiter}感冒{tuple_delimiter}咳嗽{tuple_delimiter}[症状表现] 咳嗽是感冒的常见症状表现{tuple_delimiter}8)
+("relationship"{tuple_delimiter}健脾益气法{tuple_delimiter}脾虚证{tuple_delimiter}[治疗] 健脾益气法可以治疗脾虚证疾病{tuple_delimiter}9)
 {record_delimiter}
-("relationship"{tuple_delimiter}风寒感冒{tuple_delimiter}浮紧脉{tuple_delimiter}[脉象] 风寒感冒的典型脉象表现为浮紧脉{tuple_delimiter}8)
-{record_delimiter}
-("relationship"{tuple_delimiter}风热感冒{tuple_delimiter}浮数脉{tuple_delimiter}[脉象] 风热感冒的典型脉象表现为浮数脉{tuple_delimiter}8)
-{record_delimiter}
-("relationship"{tuple_delimiter}望闻问切{tuple_delimiter}感冒{tuple_delimiter}[诊断] 中医通过望闻问切的方法诊断感冒{tuple_delimiter}7)
-{record_delimiter}
-("relationship"{tuple_delimiter}外感风邪{tuple_delimiter}感冒{tuple_delimiter}[病因] 外感风邪是感冒的主要病因{tuple_delimiter}9)
-{record_delimiter}
-("relationship"{tuple_delimiter}张仲景{tuple_delimiter}感冒{tuple_delimiter}[相关] 张仲景在《伤寒论》中对感冒有详细论述{tuple_delimiter}8)
+("relationship"{tuple_delimiter}四君子汤{tuple_delimiter}太平惠民和剂局方{tuple_delimiter}[来源于] 四君子汤的记载来源于太平惠民和剂局方{tuple_delimiter}8)
 {completion_delimiter}
 
 ######################
